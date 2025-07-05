@@ -80,3 +80,24 @@ export const sendCalendarNotFoundResponse = (res: Response) => {
     message: "Property tidak ditemukan",
   });
 };
+
+export const sendCategoriesSuccessResponse = (
+  res: Response,
+  categories: any[]
+) => {
+  res.status(200).json({
+    success: true,
+    message: "Property categories berhasil ditemukan",
+    data: categories,
+    total: categories.length,
+  });
+};
+
+export const sendCategoriesEmptyResponse = (res: Response) => {
+  res.status(200).json({
+    success: true,
+    message: "Tidak ada property categories yang ditemukan",
+    data: [],
+    total: 0,
+  });
+};

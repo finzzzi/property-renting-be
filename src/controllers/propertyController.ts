@@ -4,12 +4,14 @@ import {
   validatePagination,
   validateDetailParams,
   validateCalendarParams,
+  validateCategoryParams,
 } from "../services/propertyValidation";
 import {
   buildWhereClause,
   getAvailableProperties,
   getPropertyDetail,
   getPropertyForCalendar,
+  getPropertyCategories,
 } from "../services/propertyQuery";
 import {
   processRoomsAvailability,
@@ -29,6 +31,8 @@ import {
   sendNoAvailableRoomsResponse,
   sendCalendarResponse,
   sendCalendarNotFoundResponse,
+  sendCategoriesSuccessResponse,
+  sendCategoriesEmptyResponse,
 } from "../services/responseHelper";
 
 export const searchProperties = async (
@@ -173,6 +177,32 @@ export const getPropertyCalendar = async (
 
     // Send success response
     sendCalendarResponse(res, calendarData);
+  } catch (error) {
+    sendErrorResponse(res, error);
+  }
+};
+
+export const getPropertyCategoriesByTenant = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    // Validasi input parameters
+    const validatedParams = validateCategoryParams(req.query, res);
+    if (!validatedParams) return;
+
+    // Query property categories
+    const categories = await getPropertyCategories(validatedParams);
+
+    // Cek apakah ada categories yang ditemukan
+    if (categories.length === 0) {
+      sendCategoriesEmptyResponse(res);
+      return;
+    }
+
+    // Send success response
+    sendCategoriesSuccessResponse(res, categories);
   } catch (error) {
     sendErrorResponse(res, error);
   }

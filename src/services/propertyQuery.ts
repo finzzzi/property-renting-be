@@ -2,6 +2,7 @@ import { PrismaClient } from "../../generated/prisma";
 import {
   ValidatedSearchParams,
   ValidatedDetailParams,
+  ValidatedCategoryParams,
 } from "./propertyValidation";
 
 const prisma = new PrismaClient();
@@ -325,5 +326,36 @@ export const getPropertyForCalendar = async (
         },
       },
     },
+  });
+};
+
+export const getPropertyCategories = async (
+  params: ValidatedCategoryParams
+) => {
+  const { tenantId } = params;
+
+  // Query dengan where clause untuk tenant_id yang sesuai dengan user atau null
+  const whereClause: any = {
+    OR: [
+      { tenant_id: null }, // Categories yang public (tenant_id null)
+    ],
+  };
+
+  // Jika tenant_id diberikan, tambahkan kondisi untuk tenant_id tersebut
+  if (tenantId) {
+    whereClause.OR.push({ tenant_id: tenantId });
+  }
+
+  return await prisma.property_categories.findMany({
+    where: whereClause,
+    select: {
+      id: true,
+      name: true,
+      tenant_id: true,
+    },
+    orderBy: [
+      { tenant_id: "asc" }, // Public categories (null) first
+      { id: "asc" }, // Then sort by name
+    ],
   });
 };

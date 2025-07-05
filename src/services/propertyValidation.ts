@@ -44,6 +44,14 @@ export interface ValidatedCalendarParams {
   month: number;
 }
 
+interface CategoryParams {
+  tenant_id?: string;
+}
+
+export interface ValidatedCategoryParams {
+  tenantId?: string;
+}
+
 export const validateSearchParams = (
   params: SearchParams,
   res: Response
@@ -269,5 +277,38 @@ export const validateCalendarParams = (
     propertyId: parsedPropertyId,
     year: parsedYear,
     month: parsedMonth,
+  };
+};
+
+export const validateCategoryParams = (
+  params: CategoryParams,
+  res: Response
+): ValidatedCategoryParams | null => {
+  const { tenant_id } = params;
+
+  // tenant_id adalah optional, jika ada validasi format UUID
+  if (tenant_id && typeof tenant_id !== "string") {
+    res.status(400).json({
+      success: false,
+      message: "tenant_id harus berupa string UUID yang valid",
+    });
+    return null;
+  }
+
+  // Validasi format UUID jika tenant_id ada
+  if (tenant_id) {
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(tenant_id)) {
+      res.status(400).json({
+        success: false,
+        message: "tenant_id harus berupa UUID yang valid",
+      });
+      return null;
+    }
+  }
+
+  return {
+    tenantId: tenant_id,
   };
 };
