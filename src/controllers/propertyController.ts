@@ -13,6 +13,7 @@ import {
   validateUpdatePropertyParams,
   validatePropertyEditParams,
   validateCreateRoomParams,
+  validateOwnedRoomsParams,
 } from "../services/propertyValidation";
 import {
   buildWhereClause,
@@ -26,6 +27,7 @@ import {
   updateProperty,
   getPropertyForEdit,
   createRoom,
+  getOwnedRooms,
 } from "../services/propertyQuery";
 import {
   processRoomsAvailability,
@@ -590,6 +592,61 @@ export const createNewRoom = async (
     });
   } catch (error) {
     console.error("Error in createNewRoom:", error);
+    res.status(500).json({
+      success: false,
+      message: "Terjadi kesalahan server",
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+};
+
+export const getOwnedRoomsList = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        message: "User tidak terautentikasi",
+      });
+      return;
+    }
+
+    // Validasi input parameters
+    const validatedParams = validateOwnedRoomsParams(req.query, res);
+    if (!validatedParams) return;
+
+    // Get owned rooms
+    const result = await getOwnedRooms(validatedParams, userId);
+
+    // Process data untuk response tanpa description
+    const processedRooms = result.data.map((room) => ({
+      id: room.id,
+      name: room.name,
+      price: room.price,
+      max_guests: room.max_guests,
+      quantity: room.quantity,
+      property_id: room.property_id,
+      property_name: room.properties?.name || null,
+      created_at: room.created_at,
+      updated_at: room.updated_at,
+    }));
+
+    res.status(200).json({
+      success: true,
+      message:
+        result.data.length > 0
+          ? "Daftar room berhasil ditemukan"
+          : "Belum ada room yang ditemukan",
+      data: processedRooms,
+      pagination: result.pagination,
+    });
+  } catch (error) {
+    console.error("Error in getOwnedRoomsList:", error);
     res.status(500).json({
       success: false,
       message: "Terjadi kesalahan server",

@@ -739,3 +739,32 @@ export const validateCreateRoomParams = (
     propertyId: propertyIdNumber,
   };
 };
+
+interface OwnedRoomsParams {
+  page?: string;
+}
+
+export interface ValidatedOwnedRoomsParams {
+  page: number;
+}
+
+export const validateOwnedRoomsParams = (
+  query: OwnedRoomsParams,
+  res: Response
+): ValidatedOwnedRoomsParams | null => {
+  const { page } = query;
+
+  // Validasi page number
+  const pageNumber = parseInt(page as string) || 1;
+  if (pageNumber < 1) {
+    res.status(400).json({
+      success: false,
+      message: "Page number harus lebih besar dari 0",
+    });
+    return null;
+  }
+
+  return {
+    page: pageNumber,
+  };
+};

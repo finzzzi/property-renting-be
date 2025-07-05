@@ -9,6 +9,7 @@ import {
   ValidatedUpdatePropertyParams,
   ValidatedPropertyEditParams,
   ValidatedCreateRoomParams,
+  ValidatedOwnedRoomsParams,
 } from "./propertyValidation";
 
 const prisma = new PrismaClient();
@@ -729,4 +730,66 @@ export const createRoom = async (
   });
 
   return newRoom;
+};
+
+export const getOwnedRooms = async (
+  params: ValidatedOwnedRoomsParams,
+  userId: string
+) => {
+  const { page } = params;
+  const limit = 5;
+  const offset = (page - 1) * limit;
+
+  // Build where clause
+  const whereClause: any = {
+    properties: {
+      tenant_id: userId,
+    },
+  };
+
+  // Get total count
+  const totalCount = await prisma.rooms.count({
+    where: whereClause,
+  });
+
+  // Get rooms with pagination
+  const rooms = await prisma.rooms.findMany({
+    where: whereClause,
+    select: {
+      id: true,
+      name: true,
+      price: true,
+      max_guests: true,
+      quantity: true,
+      created_at: true,
+      updated_at: true,
+      property_id: true,
+      properties: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+    },
+    orderBy: { created_at: "desc" },
+    skip: offset,
+    take: limit,
+  });
+
+  // Calculate pagination info
+  const totalPages = Math.ceil(totalCount / limit);
+  const hasNextPage = page < totalPages;
+  const hasPreviousPage = page > 1;
+
+  return {
+    data: rooms,
+    pagination: {
+      current_page: page,
+      total_pages: totalPages,
+      total_items: totalCount,
+      items_per_page: limit,
+      has_next_page: hasNextPage,
+      has_previous_page: hasPreviousPage,
+    },
+  };
 };
