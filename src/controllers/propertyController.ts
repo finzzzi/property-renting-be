@@ -1,4 +1,6 @@
 import { NextFunction, Request, Response } from "express";
+// Import untuk memuat module augmentation Express Request interface
+import "../middleware/authMiddleware";
 import {
   validateSearchParams,
   validatePagination,
@@ -12,6 +14,7 @@ import {
   getPropertyDetail,
   getPropertyForCalendar,
   getPropertyCategories,
+  getUserProperties,
 } from "../services/propertyQuery";
 import {
   processRoomsAvailability,
@@ -205,5 +208,91 @@ export const getPropertyCategoriesByTenant = async (
     sendCategoriesSuccessResponse(res, categories);
   } catch (error) {
     sendErrorResponse(res, error);
+  }
+};
+
+export const getUserOwnedProperties = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        message: "User tidak terautentikasi",
+      });
+      return;
+    }
+
+    // Query properties milik user
+    const properties = await getUserProperties(userId);
+
+    // Cek apakah user memiliki properties
+    if (properties.length === 0) {
+      res.status(200).json({
+        success: true,
+        message: "Anda belum memiliki property",
+        data: [],
+        total: 0,
+      });
+      return;
+    }
+
+    // Process data properties
+    const processedProperties = properties.map((property) => ({
+      id: property.id,
+      name: property.name,
+      description: property.description,
+      location: property.location,
+      created_at: property.created_at,
+      updated_at: property.updated_at,
+      category: property.property_categories
+        ? {
+            id: property.property_categories.id,
+            name: property.property_categories.name,
+          }
+        : null,
+      city: property.cities
+        ? {
+            id: property.cities.id,
+            name: property.cities.name,
+            type: property.cities.type,
+          }
+        : null,
+      pictures: property.property_pictures.map((pic) => ({
+        id: pic.id,
+        file_path: pic.file_path,
+        is_main: pic.is_main,
+      })),
+      rooms: property.rooms.map((room) => ({
+        id: room.id,
+        name: room.name,
+        price: room.price,
+        description: room.description,
+        max_guests: room.max_guests,
+        quantity: room.quantity,
+        picture: room.picture,
+        created_at: room.created_at,
+        updated_at: room.updated_at,
+      })),
+      room_count: property._count.rooms,
+    }));
+
+    res.status(200).json({
+      success: true,
+      message: "Properties berhasil ditemukan",
+      data: processedProperties,
+      total: processedProperties.length,
+    });
+  } catch (error) {
+    console.error("Error in getUserOwnedProperties:", error);
+    res.status(500).json({
+      success: false,
+      message: "Terjadi kesalahan server",
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
   }
 };

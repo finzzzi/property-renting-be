@@ -359,3 +359,54 @@ export const getPropertyCategories = async (
     ],
   });
 };
+
+export const getUserProperties = async (userId: string) => {
+  return await prisma.properties.findMany({
+    where: {
+      tenant_id: userId,
+    },
+    include: {
+      property_categories: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      cities: {
+        select: {
+          id: true,
+          name: true,
+          type: true,
+        },
+      },
+      property_pictures: {
+        select: {
+          id: true,
+          file_path: true,
+          is_main: true,
+        },
+        orderBy: [{ is_main: "desc" }, { id: "asc" }],
+      },
+      rooms: {
+        select: {
+          id: true,
+          name: true,
+          price: true,
+          description: true,
+          max_guests: true,
+          quantity: true,
+          picture: true,
+          created_at: true,
+          updated_at: true,
+        },
+        orderBy: { id: "asc" },
+      },
+      _count: {
+        select: {
+          rooms: true,
+        },
+      },
+    },
+    orderBy: { created_at: "desc" },
+  });
+};
