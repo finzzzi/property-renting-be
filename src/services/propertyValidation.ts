@@ -76,6 +76,14 @@ export interface ValidatedMyPropertiesParams {
   page: number;
 }
 
+interface OwnedPropertyDetailParams {
+  property_id?: string;
+}
+
+export interface ValidatedOwnedPropertyDetailParams {
+  propertyId: number;
+}
+
 export const validateSearchParams = (
   params: SearchParams,
   res: Response
@@ -434,5 +442,36 @@ export const validateMyPropertiesParams = (
 
   return {
     page: pageNumber,
+  };
+};
+
+export const validateOwnedPropertyDetailParams = (
+  params: OwnedPropertyDetailParams,
+  res: Response
+): ValidatedOwnedPropertyDetailParams | null => {
+  const { property_id } = params;
+
+  // Validasi property_id wajib
+  if (!property_id) {
+    res.status(400).json({
+      success: false,
+      message: "property_id harus diisi",
+    });
+    return null;
+  }
+
+  const propertyId = parseInt(property_id);
+
+  // Validasi property_id format angka
+  if (isNaN(propertyId) || propertyId <= 0) {
+    res.status(400).json({
+      success: false,
+      message: "property_id harus berupa angka yang valid",
+    });
+    return null;
+  }
+
+  return {
+    propertyId,
   };
 };

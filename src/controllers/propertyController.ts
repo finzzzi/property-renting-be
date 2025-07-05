@@ -9,6 +9,7 @@ import {
   validateCategoryParams,
   validateCreatePropertyParams,
   validateMyPropertiesParams,
+  validateOwnedPropertyDetailParams,
 } from "../services/propertyValidation";
 import {
   buildWhereClause,
@@ -18,6 +19,7 @@ import {
   getPropertyCategories,
   getUserProperties,
   createProperty,
+  getOwnedPropertyDetail,
 } from "../services/propertyQuery";
 import {
   processRoomsAvailability,
@@ -269,6 +271,7 @@ export const getUserOwnedProperties = async (
             type: property.cities.type,
           }
         : null,
+      total_rooms: property._count.rooms,
     }));
 
     res.status(200).json({
@@ -316,6 +319,95 @@ export const createNewProperty = async (
     });
   } catch (error) {
     console.error("Error in createNewProperty:", error);
+    res.status(500).json({
+      success: false,
+      message: "Terjadi kesalahan server",
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+};
+
+export const getOwnedPropertyDetailById = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        message: "User tidak terautentikasi",
+      });
+      return;
+    }
+
+    // Validasi input parameters
+    const validatedParams = validateOwnedPropertyDetailParams(req.query, res);
+    if (!validatedParams) return;
+
+    const { propertyId } = validatedParams;
+
+    // Query property detail yang dimiliki user
+    const property = await getOwnedPropertyDetail(propertyId, userId);
+
+    // Cek apakah property ditemukan dan milik user
+    if (!property) {
+      res.status(404).json({
+        success: false,
+        message: "Property tidak ditemukan atau bukan milik Anda",
+      });
+      return;
+    }
+
+    // Process data property untuk response
+    const processedProperty = {
+      id: property.id,
+      name: property.name,
+      description: property.description,
+      location: property.location,
+      created_at: property.created_at,
+      updated_at: property.updated_at,
+      category: property.property_categories
+        ? {
+            id: property.property_categories.id,
+            name: property.property_categories.name,
+          }
+        : null,
+      city: property.cities
+        ? {
+            id: property.cities.id,
+            name: property.cities.name,
+            type: property.cities.type,
+          }
+        : null,
+      pictures: property.property_pictures.map((picture) => ({
+        id: picture.id,
+        file_path: picture.file_path,
+        is_main: picture.is_main,
+      })),
+      rooms: property.rooms.map((room) => ({
+        id: room.id,
+        name: room.name,
+        price: room.price,
+        description: room.description,
+        max_guests: room.max_guests,
+        quantity: room.quantity,
+        picture: room.picture,
+        created_at: room.created_at,
+        updated_at: room.updated_at,
+      })),
+      total_rooms: property._count.rooms,
+    };
+
+    res.status(200).json({
+      success: true,
+      message: "Detail property berhasil ditemukan",
+      data: processedProperty,
+    });
+  } catch (error) {
+    console.error("Error in getOwnedPropertyDetailById:", error);
     res.status(500).json({
       success: false,
       message: "Terjadi kesalahan server",

@@ -6,6 +6,7 @@ import {
   getPropertyCategoriesByTenant,
   getUserOwnedProperties,
   createNewProperty,
+  getOwnedPropertyDetailById,
 } from "../controllers/propertyController";
 import {
   authenticateUser,
@@ -26,6 +27,13 @@ router.get(
   authenticateUser,
   requireTenantRole,
   getUserOwnedProperties
+);
+
+router.get(
+  "/my-property-detail",
+  authenticateUser,
+  requireTenantRole,
+  getOwnedPropertyDetailById
 );
 
 router.post("/create", authenticateUser, requireTenantRole, createNewProperty);
