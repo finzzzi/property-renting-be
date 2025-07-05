@@ -6,6 +6,7 @@ import {
   getPropertyCategoriesByTenant,
   createNewCategory,
   updateCategoryById,
+  deleteCategoryById,
   getUserOwnedProperties,
   createNewProperty,
   getOwnedPropertyDetailById,
@@ -15,6 +16,8 @@ import {
   getOwnedRoomsList,
   getRoomForEditForm,
   updateRoomById,
+  deletePropertyById,
+  deleteRoomById,
 } from "../controllers/propertyController";
 import {
   authenticateUser,
@@ -42,6 +45,13 @@ router.put(
   authenticateUser,
   requireTenantRole,
   updateCategoryById
+);
+
+router.delete(
+  "/categories/delete/:category_id",
+  authenticateUser,
+  requireTenantRole,
+  deleteCategoryById
 );
 
 router.get(
@@ -100,6 +110,20 @@ router.put(
   authenticateUser,
   requireTenantRole,
   updateRoomById
+);
+
+router.delete(
+  "/delete/:property_id",
+  authenticateUser,
+  requireTenantRole,
+  deletePropertyById
+);
+
+router.delete(
+  "/rooms/delete/:room_id",
+  authenticateUser,
+  requireTenantRole,
+  deleteRoomById
 );
 
 export default router;

@@ -112,6 +112,14 @@ export interface ValidatedPropertyEditParams {
   propertyId: number;
 }
 
+interface DeletePropertyParams {
+  property_id?: string;
+}
+
+export interface ValidatedDeletePropertyParams {
+  propertyId: number;
+}
+
 export const validateSearchParams = (
   params: SearchParams,
   res: Response
@@ -487,6 +495,43 @@ export const validateUpdateCategoryParams = (
   return result;
 };
 
+interface DeleteCategoryParams {
+  category_id?: string;
+}
+
+export interface ValidatedDeleteCategoryParams {
+  categoryId: number;
+}
+
+export const validateDeleteCategoryParams = (
+  params: DeleteCategoryParams,
+  res: Response
+): ValidatedDeleteCategoryParams | null => {
+  const { category_id } = params;
+
+  if (!category_id) {
+    res.status(400).json({
+      success: false,
+      message: "Category ID harus diisi",
+    });
+    return null;
+  }
+
+  const categoryId = parseInt(category_id);
+
+  if (isNaN(categoryId) || categoryId <= 0) {
+    res.status(400).json({
+      success: false,
+      message: "Category ID harus berupa angka positif",
+    });
+    return null;
+  }
+
+  return {
+    categoryId,
+  };
+};
+
 export const validateCreatePropertyParams = (
   body: CreatePropertyParams,
   res: Response
@@ -741,6 +786,43 @@ export const validatePropertyEditParams = (
   params: PropertyEditParams,
   res: Response
 ): ValidatedPropertyEditParams | null => {
+  const { property_id } = params;
+
+  if (!property_id) {
+    res.status(400).json({
+      success: false,
+      message: "Property ID harus diisi",
+    });
+    return null;
+  }
+
+  const propertyId = parseInt(property_id);
+
+  if (isNaN(propertyId) || propertyId <= 0) {
+    res.status(400).json({
+      success: false,
+      message: "Property ID harus berupa angka positif",
+    });
+    return null;
+  }
+
+  return {
+    propertyId,
+  };
+};
+
+interface DeletePropertyParams {
+  property_id?: string;
+}
+
+export interface ValidatedDeletePropertyParams {
+  propertyId: number;
+}
+
+export const validateDeletePropertyParams = (
+  params: DeletePropertyParams,
+  res: Response
+): ValidatedDeletePropertyParams | null => {
   const { property_id } = params;
 
   if (!property_id) {
@@ -1079,4 +1161,41 @@ export const validateUpdateRoomParams = (
   }
 
   return result;
+};
+
+interface DeleteRoomParams {
+  room_id?: string;
+}
+
+export interface ValidatedDeleteRoomParams {
+  roomId: number;
+}
+
+export const validateDeleteRoomParams = (
+  params: DeleteRoomParams,
+  res: Response
+): ValidatedDeleteRoomParams | null => {
+  const { room_id } = params;
+
+  if (!room_id) {
+    res.status(400).json({
+      success: false,
+      message: "Room ID harus diisi",
+    });
+    return null;
+  }
+
+  const roomId = parseInt(room_id);
+
+  if (isNaN(roomId) || roomId <= 0) {
+    res.status(400).json({
+      success: false,
+      message: "Room ID harus berupa angka positif",
+    });
+    return null;
+  }
+
+  return {
+    roomId,
+  };
 };

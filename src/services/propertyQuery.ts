@@ -5,6 +5,7 @@ import {
   ValidatedCategoryParams,
   ValidatedCreateCategoryParams,
   ValidatedUpdateCategoryParams,
+  ValidatedDeleteCategoryParams,
   ValidatedCreatePropertyParams,
   ValidatedMyPropertiesParams,
   ValidatedOwnedPropertyDetailParams,
@@ -455,6 +456,45 @@ export const updateCategory = async (
   });
 
   return updatedCategory;
+};
+
+export const deleteCategory = async (
+  params: ValidatedDeleteCategoryParams,
+  userId: string
+) => {
+  const { categoryId } = params;
+
+  // Pertama, verifikasi bahwa kategori tersebut milik user
+  const category = await prisma.property_categories.findFirst({
+    where: {
+      id: categoryId,
+      tenant_id: userId,
+    },
+  });
+
+  if (!category) {
+    return null;
+  }
+
+  // Cek apakah kategori sedang digunakan oleh property
+  const propertiesUsingCategory = await prisma.properties.count({
+    where: {
+      category_id: categoryId,
+    },
+  });
+
+  if (propertiesUsingCategory > 0) {
+    return "in_use"; // Kategori sedang digunakan
+  }
+
+  // Hapus kategori
+  const deletedCategory = await prisma.property_categories.delete({
+    where: {
+      id: categoryId,
+    },
+  });
+
+  return deletedCategory;
 };
 
 export const getUserProperties = async (
@@ -1040,4 +1080,128 @@ export const updateRoom = async (
   });
 
   return updatedRoom;
+};
+
+export const deletePropertyById = async (
+  propertyId: number,
+  tenantId: string
+): Promise<{ success: boolean; message: string; data?: any }> => {
+  try {
+    // Verifikasi bahwa property milik tenant
+    const property = await prisma.properties.findFirst({
+      where: {
+        id: propertyId,
+        tenant_id: tenantId,
+      },
+    });
+
+    if (!property) {
+      return {
+        success: false,
+        message: "Property tidak ditemukan atau bukan milik Anda",
+      };
+    }
+
+    // Cek apakah property memiliki booking yang masih aktif
+    const bookingsCount = await prisma.bookings.count({
+      where: {
+        rooms: {
+          property_id: propertyId,
+        },
+      },
+    });
+
+    if (bookingsCount > 0) {
+      return {
+        success: false,
+        message:
+          "Tidak dapat menghapus property karena masih memiliki booking. Tunggu hingga semua booking selesai",
+      };
+    }
+
+    // Hapus property
+    const deletedProperty = await prisma.properties.delete({
+      where: {
+        id: propertyId,
+      },
+    });
+
+    return {
+      success: true,
+      message: "Property berhasil dihapus",
+      data: deletedProperty,
+    };
+  } catch (error) {
+    console.error("Error deleting property:", error);
+    return {
+      success: false,
+      message: "Terjadi kesalahan saat menghapus property",
+    };
+  }
+};
+
+export const deleteRoomById = async (
+  roomId: number,
+  tenantId: string
+): Promise<{ success: boolean; message: string; data?: any }> => {
+  try {
+    // Verifikasi bahwa room milik tenant melalui property relation
+    const room = await prisma.rooms.findFirst({
+      where: {
+        id: roomId,
+        properties: {
+          tenant_id: tenantId,
+        },
+      },
+      include: {
+        properties: {
+          select: {
+            name: true,
+            tenant_id: true,
+          },
+        },
+      },
+    });
+
+    if (!room) {
+      return {
+        success: false,
+        message: "Room tidak ditemukan atau bukan milik Anda",
+      };
+    }
+
+    // Cek apakah room memiliki booking yang masih aktif
+    const bookingsCount = await prisma.bookings.count({
+      where: {
+        room_id: roomId,
+      },
+    });
+
+    if (bookingsCount > 0) {
+      return {
+        success: false,
+        message:
+          "Tidak dapat menghapus room karena masih memiliki booking. Tunggu hingga semua booking selesai",
+      };
+    }
+
+    // Hapus room
+    const deletedRoom = await prisma.rooms.delete({
+      where: {
+        id: roomId,
+      },
+    });
+
+    return {
+      success: true,
+      message: "Room berhasil dihapus",
+      data: deletedRoom,
+    };
+  } catch (error) {
+    console.error("Error deleting room:", error);
+    return {
+      success: false,
+      message: "Terjadi kesalahan saat menghapus room",
+    };
+  }
 };

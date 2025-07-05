@@ -9,6 +9,7 @@ import {
   validateCategoryParams,
   validateCreateCategoryParams,
   validateUpdateCategoryParams,
+  validateDeleteCategoryParams,
   validateCreatePropertyParams,
   validateMyPropertiesParams,
   validateOwnedPropertyDetailParams,
@@ -18,6 +19,8 @@ import {
   validateOwnedRoomsParams,
   validateRoomEditParams,
   validateUpdateRoomParams,
+  validateDeletePropertyParams,
+  validateDeleteRoomParams,
 } from "../services/propertyValidation";
 import {
   buildWhereClause,
@@ -27,6 +30,7 @@ import {
   getPropertyCategories,
   createCategory,
   updateCategory,
+  deleteCategory,
   getUserProperties,
   createProperty,
   getOwnedPropertyDetail,
@@ -36,6 +40,8 @@ import {
   getOwnedRooms,
   getRoomForEdit,
   updateRoom,
+  deletePropertyById as deletePropertyQuery,
+  deleteRoomById as deleteRoomQuery,
 } from "../services/propertyQuery";
 import {
   processRoomsAvailability,
@@ -348,6 +354,64 @@ export const updateCategoryById = async (
     });
   } catch (error) {
     console.error("Error in updateCategoryById:", error);
+    res.status(500).json({
+      success: false,
+      message: "Terjadi kesalahan server",
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+};
+
+export const deleteCategoryById = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        message: "User tidak terautentikasi",
+      });
+      return;
+    }
+
+    // Validasi input parameters
+    const validatedParams = validateDeleteCategoryParams(req.params, res);
+    if (!validatedParams) return;
+
+    // Delete category
+    const deletedCategory = await deleteCategory(validatedParams, userId);
+
+    if (!deletedCategory) {
+      res.status(404).json({
+        success: false,
+        message: "Kategori tidak ditemukan atau bukan milik Anda",
+      });
+      return;
+    }
+
+    if (deletedCategory === "in_use") {
+      res.status(400).json({
+        success: false,
+        message:
+          "Kategori tidak dapat dihapus karena sedang digunakan oleh property",
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Kategori berhasil dihapus",
+      data: {
+        id: deletedCategory.id,
+        name: deletedCategory.name,
+      },
+    });
+  } catch (error) {
+    console.error("Error in deleteCategoryById:", error);
     res.status(500).json({
       success: false,
       message: "Terjadi kesalahan server",
@@ -899,6 +963,103 @@ export const updateRoomById = async (
       success: false,
       message: "Terjadi kesalahan server",
       error: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+};
+
+export const deletePropertyById = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+      return;
+    }
+
+    // Validate parameters
+    const validatedParams = validateDeletePropertyParams(req.params, res);
+    if (!validatedParams) {
+      return;
+    }
+
+    // Delete property
+    const result = await deletePropertyQuery(
+      validatedParams.propertyId,
+      userId
+    );
+
+    if (!result.success) {
+      res.status(400).json({
+        success: false,
+        message: result.message,
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: result.message,
+      data: result.data,
+    });
+  } catch (error) {
+    console.error("Error in deletePropertyById:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+export const deleteRoomById = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        message: "Unauthorized",
+      });
+      return;
+    }
+
+    // Validate parameters
+    const validatedParams = validateDeleteRoomParams(req.params, res);
+    if (!validatedParams) {
+      return;
+    }
+
+    // Delete room
+    const result = await deleteRoomQuery(validatedParams.roomId, userId);
+
+    if (!result.success) {
+      res.status(400).json({
+        success: false,
+        message: result.message,
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: result.message,
+      data: result.data,
+    });
+  } catch (error) {
+    console.error("Error in deleteRoomById:", error);
+    res.status(500).json({
+      success: false,
+      message: "Internal server error",
     });
   }
 };
