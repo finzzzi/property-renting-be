@@ -756,17 +756,19 @@ export const validateCreateRoomParams = (
 
 interface OwnedRoomsParams {
   page?: string;
+  property_id?: string;
 }
 
 export interface ValidatedOwnedRoomsParams {
   page: number;
+  propertyId?: number;
 }
 
 export const validateOwnedRoomsParams = (
   query: OwnedRoomsParams,
   res: Response
 ): ValidatedOwnedRoomsParams | null => {
-  const { page } = query;
+  const { page, property_id } = query;
 
   // Validasi page number
   const pageNumber = parseInt(page as string) || 1;
@@ -778,7 +780,21 @@ export const validateOwnedRoomsParams = (
     return null;
   }
 
+  // Validasi property_id jika ada
+  let propertyId: number | undefined;
+  if (property_id) {
+    propertyId = parseInt(property_id);
+    if (isNaN(propertyId) || propertyId <= 0) {
+      res.status(400).json({
+        success: false,
+        message: "Property ID harus berupa angka positif",
+      });
+      return null;
+    }
+  }
+
   return {
     page: pageNumber,
+    propertyId,
   };
 };

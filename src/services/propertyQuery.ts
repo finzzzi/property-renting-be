@@ -799,7 +799,7 @@ export const getOwnedRooms = async (
   params: ValidatedOwnedRoomsParams,
   userId: string
 ) => {
-  const { page } = params;
+  const { page, propertyId } = params;
   const limit = 5;
   const offset = (page - 1) * limit;
 
@@ -809,6 +809,11 @@ export const getOwnedRooms = async (
       tenant_id: userId,
     },
   };
+
+  // Filter by property ID if provided
+  if (propertyId) {
+    whereClause.property_id = propertyId;
+  }
 
   // Get total count
   const totalCount = await prisma.rooms.count({
