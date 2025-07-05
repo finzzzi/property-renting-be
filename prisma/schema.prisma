@@ -444,7 +444,6 @@ model rooms {
   price                 Int
   description           String
   max_guests            Int
-  picture               String
   created_at            DateTime?               @default(now()) @db.Timestamptz(6)
   updated_at            DateTime?               @default(now()) @db.Timestamptz(6)
   property_id           Int?
@@ -452,6 +451,7 @@ model rooms {
   quantity              Int                     @default(1)
   bookings              bookings[]
   peak_season_rates     peak_season_rates[]
+  room_pictures         room_pictures[]
   room_unavailabilities room_unavailabilities[]
   properties            properties?             @relation(fields: [property_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
@@ -475,6 +475,17 @@ model public_users {
   users               auth_users            @relation(fields: [id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@map("users")
+  @@schema("public")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model room_pictures {
+  id         Int      @id(map: "room_picture_pkey") @default(autoincrement())
+  room_id    Int?
+  file_path  String?
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  rooms      rooms?   @relation(fields: [room_id], references: [id], onDelete: Cascade, onUpdate: NoAction, map: "room_picture_room_id_fkey")
+
   @@schema("public")
 }
 

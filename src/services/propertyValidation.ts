@@ -615,27 +615,127 @@ export const validatePropertyEditParams = (
 ): ValidatedPropertyEditParams | null => {
   const { property_id } = params;
 
-  // Validasi property_id wajib
   if (!property_id) {
     res.status(400).json({
       success: false,
-      message: "property_id harus diisi",
+      message: "Property ID harus diisi",
     });
     return null;
   }
 
   const propertyId = parseInt(property_id);
 
-  // Validasi property_id format angka
   if (isNaN(propertyId) || propertyId <= 0) {
     res.status(400).json({
       success: false,
-      message: "property_id harus berupa angka yang valid",
+      message: "Property ID harus berupa angka positif",
     });
     return null;
   }
 
   return {
     propertyId,
+  };
+};
+
+interface CreateRoomParams {
+  name?: string;
+  description?: string;
+  price?: string;
+  max_guests?: string;
+  quantity?: string;
+  property_id?: string;
+}
+
+export interface ValidatedCreateRoomParams {
+  name: string;
+  description: string;
+  price: number;
+  maxGuests: number;
+  quantity: number;
+  propertyId: number;
+}
+
+export const validateCreateRoomParams = (
+  body: CreateRoomParams,
+  res: Response
+): ValidatedCreateRoomParams | null => {
+  const { name, description, price, max_guests, quantity, property_id } = body;
+
+  // Validasi input wajib
+  if (!name || !description || !price || !max_guests || !property_id) {
+    res.status(400).json({
+      success: false,
+      message:
+        "name, description, price, max_guests, dan property_id harus diisi",
+    });
+    return null;
+  }
+
+  // Validasi nama room
+  if (name.trim().length < 2 || name.trim().length > 100) {
+    res.status(400).json({
+      success: false,
+      message: "Nama room harus antara 2-100 karakter",
+    });
+    return null;
+  }
+
+  // Validasi deskripsi
+  if (description.trim().length < 10 || description.trim().length > 1000) {
+    res.status(400).json({
+      success: false,
+      message: "Deskripsi harus antara 10-1000 karakter",
+    });
+    return null;
+  }
+
+  // Validasi harga
+  const priceNumber = parseInt(price);
+  if (isNaN(priceNumber) || priceNumber <= 0) {
+    res.status(400).json({
+      success: false,
+      message: "Harga harus berupa angka positif",
+    });
+    return null;
+  }
+
+  // Validasi max guests
+  const maxGuestsNumber = parseInt(max_guests);
+  if (isNaN(maxGuestsNumber) || maxGuestsNumber <= 0 || maxGuestsNumber > 50) {
+    res.status(400).json({
+      success: false,
+      message: "Jumlah maksimal tamu harus antara 1-50",
+    });
+    return null;
+  }
+
+  // Validasi quantity (default 1 jika tidak diisi)
+  const quantityNumber = quantity ? parseInt(quantity) : 1;
+  if (isNaN(quantityNumber) || quantityNumber <= 0 || quantityNumber > 100) {
+    res.status(400).json({
+      success: false,
+      message: "Jumlah room harus antara 1-100",
+    });
+    return null;
+  }
+
+  // Validasi property_id
+  const propertyIdNumber = parseInt(property_id);
+  if (isNaN(propertyIdNumber) || propertyIdNumber <= 0) {
+    res.status(400).json({
+      success: false,
+      message: "Property ID harus berupa angka positif",
+    });
+    return null;
+  }
+
+  return {
+    name: name.trim(),
+    description: description.trim(),
+    price: priceNumber,
+    maxGuests: maxGuestsNumber,
+    quantity: quantityNumber,
+    propertyId: propertyIdNumber,
   };
 };

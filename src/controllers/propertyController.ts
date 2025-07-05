@@ -12,6 +12,7 @@ import {
   validateOwnedPropertyDetailParams,
   validateUpdatePropertyParams,
   validatePropertyEditParams,
+  validateCreateRoomParams,
 } from "../services/propertyValidation";
 import {
   buildWhereClause,
@@ -24,6 +25,7 @@ import {
   getOwnedPropertyDetail,
   updateProperty,
   getPropertyForEdit,
+  createRoom,
 } from "../services/propertyQuery";
 import {
   processRoomsAvailability,
@@ -398,7 +400,10 @@ export const getOwnedPropertyDetailById = async (
         description: room.description,
         max_guests: room.max_guests,
         quantity: room.quantity,
-        picture: room.picture,
+        picture:
+          room.room_pictures.length > 0
+            ? room.room_pictures[0].file_path
+            : null,
         created_at: room.created_at,
         updated_at: room.updated_at,
       })),
@@ -514,29 +519,77 @@ export const updatePropertyById = async (
     );
     if (!validatedParams) return;
 
-    try {
-      // Update property
-      await updateProperty(validatedParams, userId);
+    // Update property
+    const updatedProperty = await updateProperty(validatedParams, userId);
 
-      res.status(200).json({
-        success: true,
-        message: "Property berhasil diupdate",
+    if (!updatedProperty) {
+      res.status(404).json({
+        success: false,
+        message: "Property tidak ditemukan atau bukan milik Anda",
       });
-    } catch (error: any) {
-      // Handle error jika property tidak ditemukan atau tidak milik user
-      if (error.code === "P2025") {
-        res.status(404).json({
-          success: false,
-          message: "Property tidak ditemukan atau bukan milik Anda",
-        });
-        return;
-      }
-
-      // Handle error lainnya
-      throw error;
+      return;
     }
+
+    res.status(200).json({
+      success: true,
+      message: "Property berhasil diperbarui",
+      data: {
+        id: updatedProperty.id,
+        name: updatedProperty.name,
+        description: updatedProperty.description,
+        location: updatedProperty.location,
+        category_id: updatedProperty.category_id,
+        city_id: updatedProperty.city_id,
+        updated_at: updatedProperty.updated_at,
+      },
+    });
   } catch (error) {
     console.error("Error in updatePropertyById:", error);
+    res.status(500).json({
+      success: false,
+      message: "Terjadi kesalahan server",
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+};
+
+export const createNewRoom = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        message: "User tidak terautentikasi",
+      });
+      return;
+    }
+
+    // Validasi input parameters
+    const validatedParams = validateCreateRoomParams(req.body, res);
+    if (!validatedParams) return;
+
+    // Create room baru
+    const newRoom = await createRoom(validatedParams, userId);
+
+    if (!newRoom) {
+      res.status(400).json({
+        success: false,
+        message: "Gagal membuat room atau property tidak ditemukan",
+      });
+      return;
+    }
+
+    res.status(201).json({
+      success: true,
+      message: "Room berhasil dibuat",
+    });
+  } catch (error) {
+    console.error("Error in createNewRoom:", error);
     res.status(500).json({
       success: false,
       message: "Terjadi kesalahan server",

@@ -8,6 +8,7 @@ import {
   ValidatedOwnedPropertyDetailParams,
   ValidatedUpdatePropertyParams,
   ValidatedPropertyEditParams,
+  ValidatedCreateRoomParams,
 } from "./propertyValidation";
 
 const prisma = new PrismaClient();
@@ -414,9 +415,15 @@ export const getUserProperties = async (
           description: true,
           max_guests: true,
           quantity: true,
-          picture: true,
           created_at: true,
           updated_at: true,
+          room_pictures: {
+            select: {
+              id: true,
+              file_path: true,
+            },
+            take: 1,
+          },
         },
       },
       _count: {
@@ -492,9 +499,15 @@ export const createProperty = async (
           description: true,
           max_guests: true,
           quantity: true,
-          picture: true,
           created_at: true,
           updated_at: true,
+          room_pictures: {
+            select: {
+              id: true,
+              file_path: true,
+            },
+            take: 1,
+          },
         },
       },
       _count: {
@@ -545,9 +558,15 @@ export const getOwnedPropertyDetail = async (
           description: true,
           max_guests: true,
           quantity: true,
-          picture: true,
           created_at: true,
           updated_at: true,
+          room_pictures: {
+            select: {
+              id: true,
+              file_path: true,
+            },
+            take: 1,
+          },
         },
         orderBy: { id: "asc" },
       },
@@ -629,9 +648,15 @@ export const updateProperty = async (
           description: true,
           max_guests: true,
           quantity: true,
-          picture: true,
           created_at: true,
           updated_at: true,
+          room_pictures: {
+            select: {
+              id: true,
+              file_path: true,
+            },
+            take: 1,
+          },
         },
         orderBy: { id: "asc" },
       },
@@ -671,4 +696,37 @@ export const getPropertyForEdit = async (
       },
     },
   });
+};
+
+export const createRoom = async (
+  params: ValidatedCreateRoomParams,
+  userId: string
+) => {
+  const { name, description, price, maxGuests, quantity, propertyId } = params;
+
+  // Pertama, verifikasi bahwa property tersebut milik user
+  const property = await prisma.properties.findFirst({
+    where: {
+      id: propertyId,
+      tenant_id: userId,
+    },
+  });
+
+  if (!property) {
+    return null;
+  }
+
+  // Buat room baru
+  const newRoom = await prisma.rooms.create({
+    data: {
+      name,
+      description,
+      price,
+      max_guests: maxGuests,
+      quantity,
+      property_id: propertyId,
+    },
+  });
+
+  return newRoom;
 };

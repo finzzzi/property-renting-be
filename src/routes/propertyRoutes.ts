@@ -9,6 +9,7 @@ import {
   getOwnedPropertyDetailById,
   updatePropertyById,
   getPropertyForEditForm,
+  createNewRoom,
 } from "../controllers/propertyController";
 import {
   authenticateUser,
@@ -52,6 +53,14 @@ router.put(
   authenticateUser,
   requireTenantRole,
   updatePropertyById
+);
+
+// Route untuk create room baru
+router.post(
+  "/rooms/create",
+  authenticateUser,
+  requireTenantRole,
+  createNewRoom
 );
 
 export default router;
