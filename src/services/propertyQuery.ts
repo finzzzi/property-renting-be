@@ -10,6 +10,8 @@ import {
   ValidatedPropertyEditParams,
   ValidatedCreateRoomParams,
   ValidatedOwnedRoomsParams,
+  ValidatedRoomEditParams,
+  ValidatedUpdateRoomParams,
 } from "./propertyValidation";
 
 const prisma = new PrismaClient();
@@ -860,4 +862,94 @@ export const getOwnedRooms = async (
       has_previous_page: hasPreviousPage,
     },
   };
+};
+
+export const getRoomForEdit = async (
+  params: ValidatedRoomEditParams,
+  userId: string
+) => {
+  const { roomId } = params;
+
+  return await prisma.rooms.findFirst({
+    where: {
+      id: roomId,
+      properties: {
+        tenant_id: userId,
+      },
+    },
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      price: true,
+      max_guests: true,
+      quantity: true,
+      property_id: true,
+      created_at: true,
+      updated_at: true,
+      properties: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+    },
+  });
+};
+
+export const updateRoom = async (
+  params: ValidatedUpdateRoomParams,
+  userId: string
+) => {
+  const { roomId, name, description, price, maxGuests, quantity } = params;
+
+  // Pertama, verifikasi bahwa room tersebut milik user (melalui property)
+  const room = await prisma.rooms.findFirst({
+    where: {
+      id: roomId,
+      properties: {
+        tenant_id: userId,
+      },
+    },
+  });
+
+  if (!room) {
+    return null;
+  }
+
+  // Buat object untuk data yang akan diupdate
+  const updateData: any = {};
+
+  if (name !== undefined) {
+    updateData.name = name;
+  }
+
+  if (description !== undefined) {
+    updateData.description = description;
+  }
+
+  if (price !== undefined) {
+    updateData.price = price;
+  }
+
+  if (maxGuests !== undefined) {
+    updateData.max_guests = maxGuests;
+  }
+
+  if (quantity !== undefined) {
+    updateData.quantity = quantity;
+  }
+
+  // Tambahkan updated_at
+  updateData.updated_at = new Date();
+
+  // Update room
+  const updatedRoom = await prisma.rooms.update({
+    where: {
+      id: roomId,
+    },
+    data: updateData,
+  });
+
+  return updatedRoom;
 };

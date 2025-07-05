@@ -798,3 +798,171 @@ export const validateOwnedRoomsParams = (
     propertyId,
   };
 };
+
+interface RoomEditParams {
+  room_id?: string;
+}
+
+export interface ValidatedRoomEditParams {
+  roomId: number;
+}
+
+export const validateRoomEditParams = (
+  params: RoomEditParams,
+  res: Response
+): ValidatedRoomEditParams | null => {
+  const { room_id } = params;
+
+  if (!room_id) {
+    res.status(400).json({
+      success: false,
+      message: "Room ID harus diisi",
+    });
+    return null;
+  }
+
+  const roomId = parseInt(room_id);
+
+  if (isNaN(roomId) || roomId <= 0) {
+    res.status(400).json({
+      success: false,
+      message: "Room ID harus berupa angka positif",
+    });
+    return null;
+  }
+
+  return {
+    roomId,
+  };
+};
+
+interface UpdateRoomParams {
+  room_id?: string;
+  name?: string;
+  description?: string;
+  price?: string;
+  max_guests?: string;
+  quantity?: string;
+}
+
+export interface ValidatedUpdateRoomParams {
+  roomId: number;
+  name?: string;
+  description?: string;
+  price?: number;
+  maxGuests?: number;
+  quantity?: number;
+}
+
+export const validateUpdateRoomParams = (
+  params: UpdateRoomParams,
+  body: UpdateRoomParams,
+  res: Response
+): ValidatedUpdateRoomParams | null => {
+  // Ambil room_id dari params URL
+  const { room_id } = params;
+
+  // Validasi room_id wajib
+  if (!room_id) {
+    res.status(400).json({
+      success: false,
+      message: "Room ID harus diisi",
+    });
+    return null;
+  }
+
+  const roomId = parseInt(room_id);
+
+  // Validasi room_id format angka
+  if (isNaN(roomId) || roomId <= 0) {
+    res.status(400).json({
+      success: false,
+      message: "Room ID harus berupa angka positif",
+    });
+    return null;
+  }
+
+  // Ambil data yang akan diupdate dari body
+  const { name, description, price, max_guests, quantity } = body;
+
+  // Minimal harus ada satu field yang akan diupdate
+  if (!name && !description && !price && !max_guests && !quantity) {
+    res.status(400).json({
+      success: false,
+      message: "Minimal satu field harus diisi untuk update",
+    });
+    return null;
+  }
+
+  const result: ValidatedUpdateRoomParams = {
+    roomId,
+  };
+
+  // Validasi field yang akan diupdate jika ada
+  if (name !== undefined) {
+    if (name.trim().length < 2 || name.trim().length > 100) {
+      res.status(400).json({
+        success: false,
+        message: "Nama room harus antara 2-100 karakter",
+      });
+      return null;
+    }
+    result.name = name.trim();
+  }
+
+  if (description !== undefined) {
+    if (description.trim().length < 10 || description.trim().length > 1000) {
+      res.status(400).json({
+        success: false,
+        message: "Deskripsi harus antara 10-1000 karakter",
+      });
+      return null;
+    }
+    result.description = description.trim();
+  }
+
+  // Validasi price jika ada
+  if (price !== undefined) {
+    const priceNumber = parseInt(price);
+    if (isNaN(priceNumber) || priceNumber <= 0) {
+      res.status(400).json({
+        success: false,
+        message: "Harga harus berupa angka positif",
+      });
+      return null;
+    }
+    result.price = priceNumber;
+  }
+
+  // Validasi max_guests jika ada
+  if (max_guests !== undefined) {
+    const maxGuestsNumber = parseInt(max_guests);
+    if (
+      isNaN(maxGuestsNumber) ||
+      maxGuestsNumber <= 0 ||
+      maxGuestsNumber > 50
+    ) {
+      res.status(400).json({
+        success: false,
+        message: "Jumlah maksimal tamu harus antara 1-50",
+      });
+      return null;
+    }
+    result.maxGuests = maxGuestsNumber;
+  }
+
+  // Validasi quantity jika ada
+  if (quantity !== undefined) {
+    const quantityNumber = parseInt(quantity);
+    if (isNaN(quantityNumber) || quantityNumber <= 0 || quantityNumber > 100) {
+      res.status(400).json({
+        success: false,
+        message: "Jumlah room harus antara 1-100",
+      });
+      return null;
+    }
+    result.quantity = quantityNumber;
+  }
+
+  return result;
+};

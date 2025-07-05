@@ -14,6 +14,8 @@ import {
   validatePropertyEditParams,
   validateCreateRoomParams,
   validateOwnedRoomsParams,
+  validateRoomEditParams,
+  validateUpdateRoomParams,
 } from "../services/propertyValidation";
 import {
   buildWhereClause,
@@ -28,6 +30,8 @@ import {
   getPropertyForEdit,
   createRoom,
   getOwnedRooms,
+  getRoomForEdit,
+  updateRoom,
 } from "../services/propertyQuery";
 import {
   processRoomsAvailability,
@@ -647,6 +651,122 @@ export const getOwnedRoomsList = async (
     });
   } catch (error) {
     console.error("Error in getOwnedRoomsList:", error);
+    res.status(500).json({
+      success: false,
+      message: "Terjadi kesalahan server",
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+};
+
+export const getRoomForEditForm = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        message: "User tidak terautentikasi",
+      });
+      return;
+    }
+
+    // Validasi input parameters
+    const validatedParams = validateRoomEditParams(req.params, res);
+    if (!validatedParams) return;
+
+    // Query room untuk form edit
+    const room = await getRoomForEdit(validatedParams, userId);
+
+    // Cek apakah room ditemukan dan milik user
+    if (!room) {
+      res.status(404).json({
+        success: false,
+        message: "Room tidak ditemukan atau bukan milik Anda",
+      });
+      return;
+    }
+
+    // Process data room untuk form edit
+    const editFormData = {
+      id: room.id,
+      name: room.name,
+      description: room.description,
+      price: room.price,
+      max_guests: room.max_guests,
+      quantity: room.quantity,
+      property_id: room.property_id,
+      property_name: room.properties?.name || null,
+      created_at: room.created_at,
+      updated_at: room.updated_at,
+    };
+
+    res.status(200).json({
+      success: true,
+      message: "Data room untuk edit berhasil ditemukan",
+      data: editFormData,
+    });
+  } catch (error) {
+    console.error("Error in getRoomForEditForm:", error);
+    res.status(500).json({
+      success: false,
+      message: "Terjadi kesalahan server",
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+};
+
+export const updateRoomById = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        message: "User tidak terautentikasi",
+      });
+      return;
+    }
+
+    // Validasi input parameters
+    const validatedParams = validateUpdateRoomParams(req.params, req.body, res);
+    if (!validatedParams) return;
+
+    // Update room
+    const updatedRoom = await updateRoom(validatedParams, userId);
+
+    if (!updatedRoom) {
+      res.status(404).json({
+        success: false,
+        message: "Room tidak ditemukan atau bukan milik Anda",
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Room berhasil diperbarui",
+      data: {
+        id: updatedRoom.id,
+        name: updatedRoom.name,
+        description: updatedRoom.description,
+        price: updatedRoom.price,
+        max_guests: updatedRoom.max_guests,
+        quantity: updatedRoom.quantity,
+        property_id: updatedRoom.property_id,
+        updated_at: updatedRoom.updated_at,
+      },
+    });
+  } catch (error) {
+    console.error("Error in updateRoomById:", error);
     res.status(500).json({
       success: false,
       message: "Terjadi kesalahan server",

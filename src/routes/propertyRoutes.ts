@@ -11,6 +11,8 @@ import {
   getPropertyForEditForm,
   createNewRoom,
   getOwnedRoomsList,
+  getRoomForEditForm,
+  updateRoomById,
 } from "../controllers/propertyController";
 import {
   authenticateUser,
@@ -68,6 +70,20 @@ router.get(
   authenticateUser,
   requireTenantRole,
   getOwnedRoomsList
+);
+
+router.get(
+  "/rooms/update/:room_id",
+  authenticateUser,
+  requireTenantRole,
+  getRoomForEditForm
+);
+
+router.put(
+  "/rooms/update/:room_id",
+  authenticateUser,
+  requireTenantRole,
+  updateRoomById
 );
 
 export default router;
