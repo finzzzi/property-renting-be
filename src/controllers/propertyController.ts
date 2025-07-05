@@ -310,34 +310,9 @@ export const createNewProperty = async (
     // Create property baru
     const newProperty = await createProperty(validatedParams, userId);
 
-    // Process data property yang baru dibuat
-    const processedProperty = {
-      id: newProperty.id,
-      name: newProperty.name,
-      description: newProperty.description,
-      location: newProperty.location,
-      tenant_id: newProperty.tenant_id,
-      created_at: newProperty.created_at,
-      updated_at: newProperty.updated_at,
-      category: newProperty.property_categories
-        ? {
-            id: newProperty.property_categories.id,
-            name: newProperty.property_categories.name,
-          }
-        : null,
-      city: newProperty.cities
-        ? {
-            id: newProperty.cities.id,
-            name: newProperty.cities.name,
-            type: newProperty.cities.type,
-          }
-        : null,
-    };
-
     res.status(201).json({
       success: true,
       message: "Property berhasil dibuat",
-      data: processedProperty,
     });
   } catch (error) {
     console.error("Error in createNewProperty:", error);
