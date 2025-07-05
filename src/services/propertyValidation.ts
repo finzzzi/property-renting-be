@@ -52,6 +52,30 @@ export interface ValidatedCategoryParams {
   tenantId?: string;
 }
 
+interface CreatePropertyParams {
+  name?: string;
+  description?: string;
+  location?: string;
+  category_id?: string;
+  city_id?: string;
+}
+
+export interface ValidatedCreatePropertyParams {
+  name: string;
+  description: string;
+  location: string;
+  categoryId?: number;
+  cityId?: number;
+}
+
+interface MyPropertiesParams {
+  page?: string;
+}
+
+export interface ValidatedMyPropertiesParams {
+  page: number;
+}
+
 export const validateSearchParams = (
   params: SearchParams,
   res: Response
@@ -310,5 +334,105 @@ export const validateCategoryParams = (
 
   return {
     tenantId: tenant_id,
+  };
+};
+
+export const validateCreatePropertyParams = (
+  body: CreatePropertyParams,
+  res: Response
+): ValidatedCreatePropertyParams | null => {
+  const { name, description, location, category_id, city_id } = body;
+
+  // Validasi field wajib
+  if (!name || !description || !location) {
+    res.status(400).json({
+      success: false,
+      message: "name, description, dan location harus diisi",
+    });
+    return null;
+  }
+
+  // Validasi panjang string
+  if (name.trim().length < 3) {
+    res.status(400).json({
+      success: false,
+      message: "Nama property minimal 3 karakter",
+    });
+    return null;
+  }
+
+  if (description.trim().length < 10) {
+    res.status(400).json({
+      success: false,
+      message: "Deskripsi property minimal 10 karakter",
+    });
+    return null;
+  }
+
+  if (location.trim().length < 3) {
+    res.status(400).json({
+      success: false,
+      message: "Lokasi property minimal 3 karakter",
+    });
+    return null;
+  }
+
+  // Validasi category_id jika ada
+  let categoryId: number | undefined;
+  if (category_id) {
+    categoryId = parseInt(category_id);
+    if (isNaN(categoryId) || categoryId <= 0) {
+      res.status(400).json({
+        success: false,
+        message: "category_id harus berupa angka yang valid",
+      });
+      return null;
+    }
+  }
+
+  // Validasi city_id jika ada
+  let cityId: number | undefined;
+  if (city_id) {
+    cityId = parseInt(city_id);
+    if (isNaN(cityId) || cityId <= 0) {
+      res.status(400).json({
+        success: false,
+        message: "city_id harus berupa angka yang valid",
+      });
+      return null;
+    }
+  }
+
+  return {
+    name: name.trim(),
+    description: description.trim(),
+    location: location.trim(),
+    categoryId,
+    cityId,
+  };
+};
+
+export const validateMyPropertiesParams = (
+  query: MyPropertiesParams,
+  res: Response
+): ValidatedMyPropertiesParams | null => {
+  const { page } = query;
+
+  // Validasi page parameter
+  let pageNumber = 1;
+  if (page) {
+    pageNumber = parseInt(page);
+    if (isNaN(pageNumber) || pageNumber < 1) {
+      res.status(400).json({
+        success: false,
+        message:
+          "Parameter page harus berupa angka yang valid dan lebih besar dari 0",
+      });
+      return null;
+    }
+  }
+
+  return {
+    page: pageNumber,
   };
 };

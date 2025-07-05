@@ -5,6 +5,7 @@ import {
   getPropertyCalendar,
   getPropertyCategoriesByTenant,
   getUserOwnedProperties,
+  createNewProperty,
 } from "../controllers/propertyController";
 import {
   authenticateUser,
@@ -26,5 +27,7 @@ router.get(
   requireTenantRole,
   getUserOwnedProperties
 );
+
+router.post("/create", authenticateUser, requireTenantRole, createNewProperty);
 
 export default router;

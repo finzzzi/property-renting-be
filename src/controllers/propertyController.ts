@@ -7,6 +7,8 @@ import {
   validateDetailParams,
   validateCalendarParams,
   validateCategoryParams,
+  validateCreatePropertyParams,
+  validateMyPropertiesParams,
 } from "../services/propertyValidation";
 import {
   buildWhereClause,
@@ -15,6 +17,7 @@ import {
   getPropertyForCalendar,
   getPropertyCategories,
   getUserProperties,
+  createProperty,
 } from "../services/propertyQuery";
 import {
   processRoomsAvailability,
@@ -227,22 +230,26 @@ export const getUserOwnedProperties = async (
       return;
     }
 
-    // Query properties milik user
-    const properties = await getUserProperties(userId);
+    // Validasi input parameters
+    const validatedParams = validateMyPropertiesParams(req.query, res);
+    if (!validatedParams) return;
+
+    // Query properties milik user dengan pagination
+    const result = await getUserProperties(userId, validatedParams);
 
     // Cek apakah user memiliki properties
-    if (properties.length === 0) {
+    if (result.data.length === 0) {
       res.status(200).json({
         success: true,
         message: "Anda belum memiliki property",
         data: [],
-        total: 0,
+        pagination: result.pagination,
       });
       return;
     }
 
     // Process data properties
-    const processedProperties = properties.map((property) => ({
+    const processedProperties = result.data.map((property) => ({
       id: property.id,
       name: property.name,
       description: property.description,
@@ -262,33 +269,78 @@ export const getUserOwnedProperties = async (
             type: property.cities.type,
           }
         : null,
-      pictures: property.property_pictures.map((pic) => ({
-        id: pic.id,
-        file_path: pic.file_path,
-        is_main: pic.is_main,
-      })),
-      rooms: property.rooms.map((room) => ({
-        id: room.id,
-        name: room.name,
-        price: room.price,
-        description: room.description,
-        max_guests: room.max_guests,
-        quantity: room.quantity,
-        picture: room.picture,
-        created_at: room.created_at,
-        updated_at: room.updated_at,
-      })),
-      room_count: property._count.rooms,
     }));
 
     res.status(200).json({
       success: true,
       message: "Properties berhasil ditemukan",
       data: processedProperties,
-      total: processedProperties.length,
+      pagination: result.pagination,
     });
   } catch (error) {
     console.error("Error in getUserOwnedProperties:", error);
+    res.status(500).json({
+      success: false,
+      message: "Terjadi kesalahan server",
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+};
+
+export const createNewProperty = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        message: "User tidak terautentikasi",
+      });
+      return;
+    }
+
+    // Validasi input parameters
+    const validatedParams = validateCreatePropertyParams(req.body, res);
+    if (!validatedParams) return;
+
+    // Create property baru
+    const newProperty = await createProperty(validatedParams, userId);
+
+    // Process data property yang baru dibuat
+    const processedProperty = {
+      id: newProperty.id,
+      name: newProperty.name,
+      description: newProperty.description,
+      location: newProperty.location,
+      tenant_id: newProperty.tenant_id,
+      created_at: newProperty.created_at,
+      updated_at: newProperty.updated_at,
+      category: newProperty.property_categories
+        ? {
+            id: newProperty.property_categories.id,
+            name: newProperty.property_categories.name,
+          }
+        : null,
+      city: newProperty.cities
+        ? {
+            id: newProperty.cities.id,
+            name: newProperty.cities.name,
+            type: newProperty.cities.type,
+          }
+        : null,
+    };
+
+    res.status(201).json({
+      success: true,
+      message: "Property berhasil dibuat",
+      data: processedProperty,
+    });
+  } catch (error) {
+    console.error("Error in createNewProperty:", error);
     res.status(500).json({
       success: false,
       message: "Terjadi kesalahan server",

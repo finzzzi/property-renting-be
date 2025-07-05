@@ -3,6 +3,8 @@ import {
   ValidatedSearchParams,
   ValidatedDetailParams,
   ValidatedCategoryParams,
+  ValidatedCreatePropertyParams,
+  ValidatedMyPropertiesParams,
 } from "./propertyValidation";
 
 const prisma = new PrismaClient();
@@ -360,8 +362,23 @@ export const getPropertyCategories = async (
   });
 };
 
-export const getUserProperties = async (userId: string) => {
-  return await prisma.properties.findMany({
+export const getUserProperties = async (
+  userId: string,
+  params: ValidatedMyPropertiesParams
+) => {
+  const { page } = params;
+  const limit = 5;
+  const offset = (page - 1) * limit;
+
+  // Query total count untuk pagination
+  const totalCount = await prisma.properties.count({
+    where: {
+      tenant_id: userId,
+    },
+  });
+
+  // Query properties dengan pagination
+  const properties = await prisma.properties.findMany({
     where: {
       tenant_id: userId,
     },
@@ -385,7 +402,6 @@ export const getUserProperties = async (userId: string) => {
           file_path: true,
           is_main: true,
         },
-        orderBy: [{ is_main: "desc" }, { id: "asc" }],
       },
       rooms: {
         select: {
@@ -399,7 +415,6 @@ export const getUserProperties = async (userId: string) => {
           created_at: true,
           updated_at: true,
         },
-        orderBy: { id: "asc" },
       },
       _count: {
         select: {
@@ -408,5 +423,82 @@ export const getUserProperties = async (userId: string) => {
       },
     },
     orderBy: { created_at: "desc" },
+    skip: offset,
+    take: limit,
+  });
+
+  // Calculate pagination info
+  const totalPages = Math.ceil(totalCount / limit);
+  const hasNextPage = page < totalPages;
+  const hasPreviousPage = page > 1;
+
+  return {
+    data: properties,
+    pagination: {
+      current_page: page,
+      total_pages: totalPages,
+      total_items: totalCount,
+      items_per_page: limit,
+      has_next_page: hasNextPage,
+      has_previous_page: hasPreviousPage,
+    },
+  };
+};
+
+export const createProperty = async (
+  params: ValidatedCreatePropertyParams,
+  tenantId: string
+) => {
+  const { name, description, location, categoryId, cityId } = params;
+
+  return await prisma.properties.create({
+    data: {
+      tenant_id: tenantId,
+      name,
+      description,
+      location,
+      category_id: categoryId || null,
+      city_id: cityId || null,
+    },
+    include: {
+      property_categories: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      cities: {
+        select: {
+          id: true,
+          name: true,
+          type: true,
+        },
+      },
+      property_pictures: {
+        select: {
+          id: true,
+          file_path: true,
+          is_main: true,
+        },
+      },
+      rooms: {
+        select: {
+          id: true,
+          name: true,
+          price: true,
+          description: true,
+          max_guests: true,
+          quantity: true,
+          picture: true,
+          created_at: true,
+          updated_at: true,
+        },
+      },
+      _count: {
+        select: {
+          rooms: true,
+        },
+      },
+    },
   });
 };
