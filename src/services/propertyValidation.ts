@@ -70,10 +70,12 @@ export interface ValidatedCreatePropertyParams {
 
 interface MyPropertiesParams {
   page?: string;
+  all?: string;
 }
 
 export interface ValidatedMyPropertiesParams {
   page: number;
+  all: boolean;
 }
 
 interface OwnedPropertyDetailParams {
@@ -450,7 +452,18 @@ export const validateMyPropertiesParams = (
   query: MyPropertiesParams,
   res: Response
 ): ValidatedMyPropertiesParams | null => {
-  const { page } = query;
+  const { page, all } = query;
+
+  // Cek apakah parameter all=true
+  const allFlag = typeof all === "string" && all.toLowerCase() === "true";
+
+  // Jika all=true, abaikan pagination
+  if (allFlag) {
+    return {
+      page: 1,
+      all: true,
+    };
+  }
 
   // Validasi page parameter
   let pageNumber = 1;
@@ -468,6 +481,7 @@ export const validateMyPropertiesParams = (
 
   return {
     page: pageNumber,
+    all: false,
   };
 };
 

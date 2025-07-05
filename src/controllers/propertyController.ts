@@ -244,7 +244,7 @@ export const getUserOwnedProperties = async (
     const validatedParams = validateMyPropertiesParams(req.query, res);
     if (!validatedParams) return;
 
-    // Query properties milik user dengan pagination
+    // Query properties milik user (dengan atau tanpa pagination)
     const result = await getUserProperties(userId, validatedParams);
 
     // Cek apakah user memiliki properties
@@ -253,7 +253,7 @@ export const getUserOwnedProperties = async (
         success: true,
         message: "Anda belum memiliki property",
         data: [],
-        pagination: result.pagination,
+        pagination: validatedParams.all ? undefined : result.pagination,
       });
       return;
     }
@@ -286,7 +286,7 @@ export const getUserOwnedProperties = async (
       success: true,
       message: "Properties berhasil ditemukan",
       data: processedProperties,
-      pagination: result.pagination,
+      pagination: validatedParams.all ? undefined : result.pagination,
     });
   } catch (error) {
     console.error("Error in getUserOwnedProperties:", error);

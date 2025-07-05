@@ -371,7 +371,70 @@ export const getUserProperties = async (
   userId: string,
   params: ValidatedMyPropertiesParams
 ) => {
-  const { page } = params;
+  const { page, all } = params;
+
+  // Jika all=true, ambil semua properties tanpa pagination
+  if (all) {
+    const propertiesAll = await prisma.properties.findMany({
+      where: {
+        tenant_id: userId,
+      },
+      include: {
+        property_categories: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+        cities: {
+          select: {
+            id: true,
+            name: true,
+            type: true,
+          },
+        },
+        property_pictures: {
+          select: {
+            id: true,
+            file_path: true,
+            is_main: true,
+          },
+        },
+        rooms: {
+          select: {
+            id: true,
+            name: true,
+            price: true,
+            description: true,
+            max_guests: true,
+            quantity: true,
+            created_at: true,
+            updated_at: true,
+            room_pictures: {
+              select: {
+                id: true,
+                file_path: true,
+              },
+              take: 1,
+            },
+          },
+        },
+        _count: {
+          select: {
+            rooms: true,
+          },
+        },
+      },
+      orderBy: { created_at: "desc" },
+    });
+
+    return {
+      data: propertiesAll,
+      pagination: null,
+    };
+  }
+
+  // Jika tidak all, gunakan pagination standar
   const limit = 5;
   const offset = (page - 1) * limit;
 
