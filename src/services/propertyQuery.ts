@@ -3,6 +3,8 @@ import {
   ValidatedSearchParams,
   ValidatedDetailParams,
   ValidatedCategoryParams,
+  ValidatedCreateCategoryParams,
+  ValidatedUpdateCategoryParams,
   ValidatedCreatePropertyParams,
   ValidatedMyPropertiesParams,
   ValidatedOwnedPropertyDetailParams,
@@ -343,16 +345,14 @@ export const getPropertyCategories = async (
 ) => {
   const { tenantId } = params;
 
-  // Query dengan where clause untuk tenant_id yang sesuai dengan user atau null
-  const whereClause: any = {
-    OR: [
-      { tenant_id: null }, // Categories yang public (tenant_id null)
-    ],
-  };
+  const whereClause: any = {};
 
-  // Jika tenant_id diberikan, tambahkan kondisi untuk tenant_id tersebut
+  // Jika tenant_id disediakan, filter berdasarkan tenant_id
+  // Jika tidak, ambil kategori publik (tenant_id null) dan kategori milik tenant
   if (tenantId) {
-    whereClause.OR.push({ tenant_id: tenantId });
+    whereClause.OR = [{ tenant_id: null }, { tenant_id: tenantId }];
+  } else {
+    whereClause.tenant_id = null; // Hanya kategori publik
   }
 
   return await prisma.property_categories.findMany({
@@ -367,6 +367,94 @@ export const getPropertyCategories = async (
       { id: "asc" }, // Then sort by name
     ],
   });
+};
+
+export const createCategory = async (params: ValidatedCreateCategoryParams) => {
+  const { name, tenantId } = params;
+
+  // Cek apakah kategori dengan nama yang sama sudah ada untuk tenant ini
+  const existingCategory = await prisma.property_categories.findFirst({
+    where: {
+      name: {
+        equals: name,
+        mode: "insensitive",
+      },
+      tenant_id: tenantId,
+    },
+  });
+
+  if (existingCategory) {
+    return null; // Kategori sudah ada
+  }
+
+  // Buat kategori baru
+  const newCategory = await prisma.property_categories.create({
+    data: {
+      name,
+      tenant_id: tenantId,
+    },
+  });
+
+  return newCategory;
+};
+
+export const updateCategory = async (
+  params: ValidatedUpdateCategoryParams,
+  userId: string
+) => {
+  const { categoryId, name } = params;
+
+  // Pertama, verifikasi bahwa kategori tersebut milik user
+  const category = await prisma.property_categories.findFirst({
+    where: {
+      id: categoryId,
+      tenant_id: userId,
+    },
+  });
+
+  if (!category) {
+    return null;
+  }
+
+  // Cek apakah kategori dengan nama baru sudah ada untuk tenant ini (kecuali kategori yang sedang diupdate)
+  if (name) {
+    const existingCategory = await prisma.property_categories.findFirst({
+      where: {
+        name: {
+          equals: name,
+          mode: "insensitive",
+        },
+        tenant_id: userId,
+        NOT: {
+          id: categoryId,
+        },
+      },
+    });
+
+    if (existingCategory) {
+      return "duplicate"; // Nama sudah digunakan kategori lain
+    }
+  }
+
+  // Buat object untuk data yang akan diupdate
+  const updateData: any = {};
+
+  if (name !== undefined) {
+    updateData.name = name;
+  }
+
+  // Tambahkan updated_at
+  updateData.updated_at = new Date();
+
+  // Update kategori
+  const updatedCategory = await prisma.property_categories.update({
+    where: {
+      id: categoryId,
+    },
+    data: updateData,
+  });
+
+  return updatedCategory;
 };
 
 export const getUserProperties = async (

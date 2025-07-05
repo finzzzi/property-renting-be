@@ -346,31 +346,145 @@ export const validateCategoryParams = (
 ): ValidatedCategoryParams | null => {
   const { tenant_id } = params;
 
-  // tenant_id adalah optional, jika ada validasi format UUID
-  if (tenant_id && typeof tenant_id !== "string") {
-    res.status(400).json({
-      success: false,
-      message: "tenant_id harus berupa string UUID yang valid",
-    });
-    return null;
-  }
-
-  // Validasi format UUID jika tenant_id ada
+  // tenant_id adalah optional untuk get categories
+  let tenantId: string | undefined;
   if (tenant_id) {
+    // Validasi format UUID jika ada
     const uuidRegex =
       /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     if (!uuidRegex.test(tenant_id)) {
       res.status(400).json({
         success: false,
-        message: "tenant_id harus berupa UUID yang valid",
+        message: "Format tenant_id tidak valid",
       });
       return null;
     }
+    tenantId = tenant_id;
   }
 
   return {
+    tenantId,
+  };
+};
+
+interface CreateCategoryParams {
+  name?: string;
+  tenant_id?: string;
+}
+
+export interface ValidatedCreateCategoryParams {
+  name: string;
+  tenantId: string;
+}
+
+export const validateCreateCategoryParams = (
+  body: CreateCategoryParams,
+  res: Response
+): ValidatedCreateCategoryParams | null => {
+  const { name, tenant_id } = body;
+
+  // Validasi input wajib
+  if (!name || !tenant_id) {
+    res.status(400).json({
+      success: false,
+      message: "name dan tenant_id harus diisi",
+    });
+    return null;
+  }
+
+  // Validasi nama kategori
+  if (name.trim().length < 2 || name.trim().length > 50) {
+    res.status(400).json({
+      success: false,
+      message: "Nama kategori harus antara 2-50 karakter",
+    });
+    return null;
+  }
+
+  // Validasi format UUID untuk tenant_id
+  const uuidRegex =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(tenant_id)) {
+    res.status(400).json({
+      success: false,
+      message: "Format tenant_id tidak valid",
+    });
+    return null;
+  }
+
+  return {
+    name: name.trim(),
     tenantId: tenant_id,
   };
+};
+
+interface UpdateCategoryParams {
+  category_id?: string;
+  name?: string;
+}
+
+export interface ValidatedUpdateCategoryParams {
+  categoryId: number;
+  name?: string;
+}
+
+export const validateUpdateCategoryParams = (
+  params: UpdateCategoryParams,
+  body: UpdateCategoryParams,
+  res: Response
+): ValidatedUpdateCategoryParams | null => {
+  // Ambil category_id dari params URL
+  const { category_id } = params;
+
+  // Validasi category_id wajib
+  if (!category_id) {
+    res.status(400).json({
+      success: false,
+      message: "Category ID harus diisi",
+    });
+    return null;
+  }
+
+  const categoryId = parseInt(category_id);
+
+  // Validasi category_id format angka
+  if (isNaN(categoryId) || categoryId <= 0) {
+    res.status(400).json({
+      success: false,
+      message: "Category ID harus berupa angka positif",
+    });
+    return null;
+  }
+
+  // Ambil data yang akan diupdate dari body
+  const { name } = body;
+
+  // Minimal harus ada satu field yang akan diupdate
+  if (!name) {
+    res.status(400).json({
+      success: false,
+      message: "Nama kategori harus diisi untuk update",
+    });
+    return null;
+  }
+
+  const result: ValidatedUpdateCategoryParams = {
+    categoryId,
+  };
+
+  // Validasi nama kategori jika ada
+  if (name !== undefined) {
+    if (name.trim().length < 2 || name.trim().length > 50) {
+      res.status(400).json({
+        success: false,
+        message: "Nama kategori harus antara 2-50 karakter",
+      });
+      return null;
+    }
+    result.name = name.trim();
+  }
+
+  return result;
 };
 
 export const validateCreatePropertyParams = (

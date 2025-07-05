@@ -7,6 +7,8 @@ import {
   validateDetailParams,
   validateCalendarParams,
   validateCategoryParams,
+  validateCreateCategoryParams,
+  validateUpdateCategoryParams,
   validateCreatePropertyParams,
   validateMyPropertiesParams,
   validateOwnedPropertyDetailParams,
@@ -23,6 +25,8 @@ import {
   getPropertyDetail,
   getPropertyForCalendar,
   getPropertyCategories,
+  createCategory,
+  updateCategory,
   getUserProperties,
   createProperty,
   getOwnedPropertyDetail,
@@ -225,6 +229,130 @@ export const getPropertyCategoriesByTenant = async (
     sendCategoriesSuccessResponse(res, categories);
   } catch (error) {
     sendErrorResponse(res, error);
+  }
+};
+
+export const createNewCategory = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        message: "User tidak terautentikasi",
+      });
+      return;
+    }
+
+    // Validasi input parameters
+    const validatedParams = validateCreateCategoryParams(req.body, res);
+    if (!validatedParams) return;
+
+    // Verifikasi bahwa tenant_id yang dikirim sama dengan user yang login
+    if (validatedParams.tenantId !== userId) {
+      res.status(403).json({
+        success: false,
+        message:
+          "Anda tidak memiliki akses untuk membuat kategori untuk tenant lain",
+      });
+      return;
+    }
+
+    // Create category baru
+    const newCategory = await createCategory(validatedParams);
+
+    if (!newCategory) {
+      res.status(400).json({
+        success: false,
+        message: "Kategori dengan nama tersebut sudah ada",
+      });
+      return;
+    }
+
+    res.status(201).json({
+      success: true,
+      message: "Kategori berhasil dibuat",
+      data: {
+        id: newCategory.id,
+        name: newCategory.name,
+        tenant_id: newCategory.tenant_id,
+        created_at: newCategory.created_at,
+      },
+    });
+  } catch (error) {
+    console.error("Error in createNewCategory:", error);
+    res.status(500).json({
+      success: false,
+      message: "Terjadi kesalahan server",
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+};
+
+export const updateCategoryById = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        message: "User tidak terautentikasi",
+      });
+      return;
+    }
+
+    // Validasi input parameters
+    const validatedParams = validateUpdateCategoryParams(
+      req.params,
+      req.body,
+      res
+    );
+    if (!validatedParams) return;
+
+    // Update category
+    const updatedCategory = await updateCategory(validatedParams, userId);
+
+    if (!updatedCategory) {
+      res.status(404).json({
+        success: false,
+        message: "Kategori tidak ditemukan atau bukan milik Anda",
+      });
+      return;
+    }
+
+    if (updatedCategory === "duplicate") {
+      res.status(400).json({
+        success: false,
+        message: "Kategori dengan nama tersebut sudah ada",
+      });
+      return;
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Kategori berhasil diperbarui",
+      data: {
+        id: updatedCategory.id,
+        name: updatedCategory.name,
+        tenant_id: updatedCategory.tenant_id,
+        updated_at: updatedCategory.updated_at,
+      },
+    });
+  } catch (error) {
+    console.error("Error in updateCategoryById:", error);
+    res.status(500).json({
+      success: false,
+      message: "Terjadi kesalahan server",
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
   }
 };
 

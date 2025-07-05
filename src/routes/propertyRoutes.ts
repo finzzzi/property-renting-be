@@ -4,6 +4,8 @@ import {
   getPropertyDetailById,
   getPropertyCalendar,
   getPropertyCategoriesByTenant,
+  createNewCategory,
+  updateCategoryById,
   getUserOwnedProperties,
   createNewProperty,
   getOwnedPropertyDetailById,
@@ -28,6 +30,20 @@ router.get("/:propertyId/calendar", getPropertyCalendar);
 router.get("/categories", getPropertyCategoriesByTenant);
 
 // Protected routes - require authentication
+router.post(
+  "/categories/create",
+  authenticateUser,
+  requireTenantRole,
+  createNewCategory
+);
+
+router.put(
+  "/categories/update/:category_id",
+  authenticateUser,
+  requireTenantRole,
+  updateCategoryById
+);
+
 router.get(
   "/my-properties",
   authenticateUser,
