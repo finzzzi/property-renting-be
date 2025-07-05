@@ -5,6 +5,9 @@ import {
   ValidatedCategoryParams,
   ValidatedCreatePropertyParams,
   ValidatedMyPropertiesParams,
+  ValidatedOwnedPropertyDetailParams,
+  ValidatedUpdatePropertyParams,
+  ValidatedPropertyEditParams,
 } from "./propertyValidation";
 
 const prisma = new PrismaClient();
@@ -551,6 +554,119 @@ export const getOwnedPropertyDetail = async (
       _count: {
         select: {
           rooms: true,
+        },
+      },
+    },
+  });
+};
+
+export const updateProperty = async (
+  params: ValidatedUpdatePropertyParams,
+  tenantId: string
+) => {
+  const { propertyId, name, description, location, categoryId, cityId } =
+    params;
+
+  // Buat object untuk data yang akan diupdate
+  const updateData: any = {};
+
+  if (name !== undefined) {
+    updateData.name = name;
+  }
+
+  if (description !== undefined) {
+    updateData.description = description;
+  }
+
+  if (location !== undefined) {
+    updateData.location = location;
+  }
+
+  if (categoryId !== undefined) {
+    updateData.category_id = categoryId;
+  }
+
+  if (cityId !== undefined) {
+    updateData.city_id = cityId;
+  }
+
+  // Tambahkan updated_at
+  updateData.updated_at = new Date();
+
+  return await prisma.properties.update({
+    where: {
+      id: propertyId,
+      tenant_id: tenantId, // Pastikan property milik user yang bersangkutan
+    },
+    data: updateData,
+    include: {
+      property_categories: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      cities: {
+        select: {
+          id: true,
+          name: true,
+          type: true,
+        },
+      },
+      property_pictures: {
+        select: {
+          id: true,
+          file_path: true,
+          is_main: true,
+        },
+        orderBy: [{ is_main: "desc" }, { id: "asc" }],
+      },
+      rooms: {
+        select: {
+          id: true,
+          name: true,
+          price: true,
+          description: true,
+          max_guests: true,
+          quantity: true,
+          picture: true,
+          created_at: true,
+          updated_at: true,
+        },
+        orderBy: { id: "asc" },
+      },
+      _count: {
+        select: {
+          rooms: true,
+        },
+      },
+    },
+  });
+};
+
+export const getPropertyForEdit = async (
+  params: ValidatedPropertyEditParams,
+  userId: string
+) => {
+  const { propertyId } = params;
+
+  return await prisma.properties.findFirst({
+    where: {
+      id: propertyId,
+      tenant_id: userId,
+    },
+    include: {
+      property_categories: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+      cities: {
+        select: {
+          id: true,
+          name: true,
+          type: true,
         },
       },
     },

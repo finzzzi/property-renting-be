@@ -7,6 +7,8 @@ import {
   getUserOwnedProperties,
   createNewProperty,
   getOwnedPropertyDetailById,
+  updatePropertyById,
+  getPropertyForEditForm,
 } from "../controllers/propertyController";
 import {
   authenticateUser,
@@ -37,5 +39,19 @@ router.get(
 );
 
 router.post("/create", authenticateUser, requireTenantRole, createNewProperty);
+
+router.get(
+  "/update/:property_id",
+  authenticateUser,
+  requireTenantRole,
+  getPropertyForEditForm
+);
+
+router.put(
+  "/update/:property_id",
+  authenticateUser,
+  requireTenantRole,
+  updatePropertyById
+);
 
 export default router;

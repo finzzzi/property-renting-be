@@ -10,6 +10,8 @@ import {
   validateCreatePropertyParams,
   validateMyPropertiesParams,
   validateOwnedPropertyDetailParams,
+  validateUpdatePropertyParams,
+  validatePropertyEditParams,
 } from "../services/propertyValidation";
 import {
   buildWhereClause,
@@ -20,6 +22,8 @@ import {
   getUserProperties,
   createProperty,
   getOwnedPropertyDetail,
+  updateProperty,
+  getPropertyForEdit,
 } from "../services/propertyQuery";
 import {
   processRoomsAvailability,
@@ -311,7 +315,7 @@ export const createNewProperty = async (
     if (!validatedParams) return;
 
     // Create property baru
-    const newProperty = await createProperty(validatedParams, userId);
+    await createProperty(validatedParams, userId);
 
     res.status(201).json({
       success: true,
@@ -408,6 +412,131 @@ export const getOwnedPropertyDetailById = async (
     });
   } catch (error) {
     console.error("Error in getOwnedPropertyDetailById:", error);
+    res.status(500).json({
+      success: false,
+      message: "Terjadi kesalahan server",
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+};
+
+export const getPropertyForEditForm = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        message: "User tidak terautentikasi",
+      });
+      return;
+    }
+
+    // Validasi input parameters
+    const validatedParams = validatePropertyEditParams(req.params, res);
+    if (!validatedParams) return;
+
+    // Query property untuk form edit
+    const property = await getPropertyForEdit(validatedParams, userId);
+
+    // Cek apakah property ditemukan dan milik user
+    if (!property) {
+      res.status(404).json({
+        success: false,
+        message: "Property tidak ditemukan atau bukan milik Anda",
+      });
+      return;
+    }
+
+    // Process data property untuk form edit (format yang lebih sederhana)
+    const editFormData = {
+      id: property.id,
+      name: property.name,
+      description: property.description,
+      location: property.location,
+      category_id: property.category_id,
+      city_id: property.city_id,
+      category: property.property_categories
+        ? {
+            id: property.property_categories.id,
+            name: property.property_categories.name,
+          }
+        : null,
+      city: property.cities
+        ? {
+            id: property.cities.id,
+            name: property.cities.name,
+            type: property.cities.type,
+          }
+        : null,
+    };
+
+    res.status(200).json({
+      success: true,
+      message: "Data property untuk edit berhasil ditemukan",
+      data: editFormData,
+    });
+  } catch (error) {
+    console.error("Error in getPropertyForEditForm:", error);
+    res.status(500).json({
+      success: false,
+      message: "Terjadi kesalahan server",
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+  }
+};
+
+export const updatePropertyById = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const userId = req.user?.id;
+
+    if (!userId) {
+      res.status(401).json({
+        success: false,
+        message: "User tidak terautentikasi",
+      });
+      return;
+    }
+
+    // Validasi input parameters
+    const validatedParams = validateUpdatePropertyParams(
+      req.params,
+      req.body,
+      res
+    );
+    if (!validatedParams) return;
+
+    try {
+      // Update property
+      await updateProperty(validatedParams, userId);
+
+      res.status(200).json({
+        success: true,
+        message: "Property berhasil diupdate",
+      });
+    } catch (error: any) {
+      // Handle error jika property tidak ditemukan atau tidak milik user
+      if (error.code === "P2025") {
+        res.status(404).json({
+          success: false,
+          message: "Property tidak ditemukan atau bukan milik Anda",
+        });
+        return;
+      }
+
+      // Handle error lainnya
+      throw error;
+    }
+  } catch (error) {
+    console.error("Error in updatePropertyById:", error);
     res.status(500).json({
       success: false,
       message: "Terjadi kesalahan server",

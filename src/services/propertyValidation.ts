@@ -84,6 +84,32 @@ export interface ValidatedOwnedPropertyDetailParams {
   propertyId: number;
 }
 
+interface UpdatePropertyParams {
+  property_id?: string;
+  name?: string;
+  description?: string;
+  location?: string;
+  category_id?: string;
+  city_id?: string;
+}
+
+export interface ValidatedUpdatePropertyParams {
+  propertyId: number;
+  name?: string;
+  description?: string;
+  location?: string;
+  categoryId?: number;
+  cityId?: number;
+}
+
+interface PropertyEditParams {
+  property_id?: string;
+}
+
+export interface ValidatedPropertyEditParams {
+  propertyId: number;
+}
+
 export const validateSearchParams = (
   params: SearchParams,
   res: Response
@@ -449,6 +475,144 @@ export const validateOwnedPropertyDetailParams = (
   params: OwnedPropertyDetailParams,
   res: Response
 ): ValidatedOwnedPropertyDetailParams | null => {
+  const { property_id } = params;
+
+  // Validasi property_id wajib
+  if (!property_id) {
+    res.status(400).json({
+      success: false,
+      message: "property_id harus diisi",
+    });
+    return null;
+  }
+
+  const propertyId = parseInt(property_id);
+
+  // Validasi property_id format angka
+  if (isNaN(propertyId) || propertyId <= 0) {
+    res.status(400).json({
+      success: false,
+      message: "property_id harus berupa angka yang valid",
+    });
+    return null;
+  }
+
+  return {
+    propertyId,
+  };
+};
+
+export const validateUpdatePropertyParams = (
+  params: UpdatePropertyParams,
+  body: UpdatePropertyParams,
+  res: Response
+): ValidatedUpdatePropertyParams | null => {
+  // Ambil property_id dari params URL
+  const { property_id } = params;
+
+  // Validasi property_id wajib
+  if (!property_id) {
+    res.status(400).json({
+      success: false,
+      message: "property_id harus diisi",
+    });
+    return null;
+  }
+
+  const propertyId = parseInt(property_id);
+
+  // Validasi property_id format angka
+  if (isNaN(propertyId) || propertyId <= 0) {
+    res.status(400).json({
+      success: false,
+      message: "property_id harus berupa angka yang valid",
+    });
+    return null;
+  }
+
+  // Ambil data yang akan diupdate dari body
+  const { name, description, location, category_id, city_id } = body;
+
+  // Minimal harus ada satu field yang akan diupdate
+  if (!name && !description && !location && !category_id && !city_id) {
+    res.status(400).json({
+      success: false,
+      message: "Minimal satu field harus diisi untuk update",
+    });
+    return null;
+  }
+
+  const result: ValidatedUpdatePropertyParams = {
+    propertyId,
+  };
+
+  // Validasi field yang akan diupdate jika ada
+  if (name !== undefined) {
+    if (name.trim().length < 3) {
+      res.status(400).json({
+        success: false,
+        message: "Nama property minimal 3 karakter",
+      });
+      return null;
+    }
+    result.name = name.trim();
+  }
+
+  if (description !== undefined) {
+    if (description.trim().length < 10) {
+      res.status(400).json({
+        success: false,
+        message: "Deskripsi property minimal 10 karakter",
+      });
+      return null;
+    }
+    result.description = description.trim();
+  }
+
+  if (location !== undefined) {
+    if (location.trim().length < 3) {
+      res.status(400).json({
+        success: false,
+        message: "Lokasi property minimal 3 karakter",
+      });
+      return null;
+    }
+    result.location = location.trim();
+  }
+
+  // Validasi category_id jika ada
+  if (category_id !== undefined) {
+    const categoryId = parseInt(category_id);
+    if (isNaN(categoryId) || categoryId <= 0) {
+      res.status(400).json({
+        success: false,
+        message: "category_id harus berupa angka yang valid",
+      });
+      return null;
+    }
+    result.categoryId = categoryId;
+  }
+
+  // Validasi city_id jika ada
+  if (city_id !== undefined) {
+    const cityId = parseInt(city_id);
+    if (isNaN(cityId) || cityId <= 0) {
+      res.status(400).json({
+        success: false,
+        message: "city_id harus berupa angka yang valid",
+      });
+      return null;
+    }
+    result.cityId = cityId;
+  }
+
+  return result;
+};
+
+export const validatePropertyEditParams = (
+  params: PropertyEditParams,
+  res: Response
+): ValidatedPropertyEditParams | null => {
   const { property_id } = params;
 
   // Validasi property_id wajib
