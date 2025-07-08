@@ -486,7 +486,7 @@ export class PictureController {
         select: {
           id: true,
           name: true,
-          max_guests: true,
+          description: true,
         },
         orderBy: {
           name: "asc",
@@ -644,7 +644,7 @@ export class PictureController {
           return {
             id: room.id,
             name: room.name,
-            max_guests: room.max_guests,
+            description: room.description,
             property_id: room.property_id,
             property: property,
             pictures: pictures,
@@ -697,7 +697,7 @@ export class PictureController {
         return {
           id: room.id,
           name: room.name,
-          max_guests: room.max_guests,
+          description: room.description,
           property_id: room.property_id,
           property: room.properties,
           pictures: pictures,
