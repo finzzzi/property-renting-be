@@ -17,7 +17,7 @@ export const sendSuccessResponse = (
 };
 
 export const sendEmptyResponse = (res: Response, pageNumber: number) => {
-  res.status(200).json({
+  res.status(404).json({
     success: true,
     message: "Tidak ada property yang tersedia untuk kriteria pencarian Anda",
     data: [],
