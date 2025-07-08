@@ -547,61 +547,153 @@ export class PictureController {
     }
   }
 
-  // Get all room pictures from user's properties
+  // Get all rooms with their pictures from user's properties (with optional property_id filter)
   async getAllRoomPictures(req: Request, res: Response): Promise<void> {
     try {
-      const pictures = await prisma.room_pictures.findMany({
-        where: {
-          rooms: {
-            properties: {
-              tenant_id: req.user?.id,
-            },
+      const { property_id } = req.query;
+
+      // If property_id filter is provided, handle specific property case
+      if (property_id) {
+        const propertyIdInt = parseInt(property_id as string);
+        if (isNaN(propertyIdInt)) {
+          res
+            .status(400)
+            .json(createErrorResponse("Property ID harus berupa angka"));
+          return;
+        }
+
+        // First, check if property exists and user owns it
+        const property = await prisma.properties.findFirst({
+          where: {
+            id: propertyIdInt,
+            tenant_id: req.user?.id,
           },
-        },
-        include: {
-          rooms: {
-            select: {
-              id: true,
-              name: true,
-              max_guests: true,
-              properties: {
-                select: {
-                  id: true,
-                  name: true,
-                  location: true,
-                },
+          select: {
+            id: true,
+            name: true,
+            location: true,
+          },
+        });
+
+        if (!property) {
+          res
+            .status(404)
+            .json(
+              createErrorResponse(
+                "Properti tidak ditemukan atau Anda tidak memiliki akses"
+              )
+            );
+          return;
+        }
+
+        // Get rooms for this property
+        const rooms = await prisma.rooms.findMany({
+          where: {
+            property_id: propertyIdInt,
+          },
+          include: {
+            room_pictures: {
+              orderBy: {
+                created_at: "asc",
               },
             },
           },
+          orderBy: {
+            name: "asc",
+          },
+        });
+
+        // If no rooms found, return property info with empty rooms
+        if (rooms.length === 0) {
+          res.json(
+            createSuccessResponse({
+              property: property,
+              rooms: [],
+              message: "Properti ini belum memiliki room",
+            })
+          );
+          return;
+        }
+
+        // Format rooms with picture data
+        const roomsWithPictureData = rooms.map((room: any) => {
+          const pictures = room.room_pictures.map((picture: any) => ({
+            id: picture.id,
+            file_path: picture.file_path,
+            created_at: picture.created_at,
+            public_url: `${process.env.SUPABASE_URL}/storage/v1/object/public/room-pictures//${picture.file_path}`,
+          }));
+
+          return {
+            id: room.id,
+            name: room.name,
+            max_guests: room.max_guests,
+            property_id: room.property_id,
+            property: property,
+            pictures: pictures,
+            has_pictures: pictures.length > 0,
+          };
+        });
+
+        res.json(
+          createSuccessResponse({
+            property: property,
+            rooms: roomsWithPictureData,
+          })
+        );
+        return;
+      }
+
+      // If no property_id filter, get all rooms from all user's properties
+      const rooms = await prisma.rooms.findMany({
+        where: {
+          properties: {
+            tenant_id: req.user?.id,
+          },
         },
-        orderBy: [
-          { rooms: { properties: { name: "asc" } } },
-          { rooms: { name: "asc" } },
-          { created_at: "asc" },
-        ],
+        include: {
+          properties: {
+            select: {
+              id: true,
+              name: true,
+              location: true,
+            },
+          },
+          room_pictures: {
+            orderBy: {
+              created_at: "asc",
+            },
+          },
+        },
+        orderBy: [{ properties: { name: "asc" } }, { name: "asc" }],
       });
 
-      // Add public URLs
-      const picturesWithUrls = pictures.map((picture: any) => ({
-        id: picture.id,
-        room_id: picture.room_id,
-        file_path: picture.file_path,
-        created_at: picture.created_at,
-        public_url: `${process.env.SUPABASE_URL}/storage/v1/object/public/room-pictures/${picture.file_path}`,
-        room: {
-          id: picture.rooms.id,
-          name: picture.rooms.name,
-          max_guests: picture.rooms.max_guests,
-        },
-        property: picture.rooms.properties,
-      }));
+      // Format response with picture data
+      const roomsWithPictureData = rooms.map((room: any) => {
+        const pictures = room.room_pictures.map((picture: any) => ({
+          id: picture.id,
+          file_path: picture.file_path,
+          created_at: picture.created_at,
+          public_url: `${process.env.SUPABASE_URL}/storage/v1/object/public/room-pictures/${picture.file_path}`,
+        }));
 
-      res.json(createSuccessResponse(picturesWithUrls));
+        return {
+          id: room.id,
+          name: room.name,
+          max_guests: room.max_guests,
+          property_id: room.property_id,
+          property: room.properties,
+          pictures: pictures,
+          has_pictures: pictures.length > 0,
+        };
+      });
+
+      res.json(createSuccessResponse(roomsWithPictureData));
     } catch (error) {
-      console.error("Error getting all room pictures:", error);
+      console.error("Error getting all rooms with pictures:", error);
       res
         .status(500)
-        .json(createErrorResponse("Gagal mengambil semua foto room"));
+        .json(createErrorResponse("Gagal mengambil data room dengan foto"));
     }
   }
 }
