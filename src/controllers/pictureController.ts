@@ -47,6 +47,17 @@ const handleDatabaseError = (
     };
   }
 
+  // Handle room picture constraint
+  if (
+    error.message &&
+    error.message.includes("Each room can have only one picture")
+  ) {
+    return {
+      status: 400,
+      message: "Setiap room hanya dapat memiliki satu foto",
+    };
+  }
+
   // Handle Prisma constraint errors
   if (error.code === "P0001") {
     if (error.message.includes("Only one picture can be marked as main")) {
@@ -60,6 +71,12 @@ const handleDatabaseError = (
       return {
         status: 400,
         message: "Setiap properti maksimal 5 foto (1 utama dan 4 tambahan)",
+      };
+    }
+    if (error.message.includes("Each room can have only one picture")) {
+      return {
+        status: 400,
+        message: "Setiap room hanya dapat memiliki satu foto",
       };
     }
     // Handle other P0001 errors
