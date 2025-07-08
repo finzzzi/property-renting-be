@@ -207,6 +207,15 @@ export const getPropertyDetail = async (params: ValidatedDetailParams) => {
               ],
             },
           },
+          room_pictures: {
+            select: {
+              id: true,
+              file_path: true,
+            },
+            orderBy: {
+              created_at: "asc",
+            },
+          },
         },
       },
     },

@@ -34,10 +34,18 @@ export const processRoomsAvailability = (property: any): ProcessedRoom[] => {
         }
       }
 
+      // Add public URLs for room pictures
+      const roomPicturesWithUrls =
+        room.room_pictures?.map((picture: any) => ({
+          ...picture,
+          public_url: `${process.env.SUPABASE_URL}/storage/v1/object/public/room-pictures/${picture.file_path}`,
+        })) || [];
+
       availableRooms.push({
         ...room,
         available_quantity: availableQuantity,
         final_price: finalPrice,
+        room_pictures: roomPicturesWithUrls,
       });
     }
   }
@@ -119,6 +127,13 @@ export const applyPagination = (
 export const processPropertyDetail = (property: any): PropertyDetail => {
   const availableRooms = processRoomsAvailability(property);
 
+  // Add public URLs for property pictures
+  const propertyPicturesWithUrls =
+    property.property_pictures?.map((picture: any) => ({
+      ...picture,
+      public_url: `${process.env.SUPABASE_URL}/storage/v1/object/public/property-pictures/${picture.file_path}`,
+    })) || [];
+
   return {
     property_id: property.id,
     name: property.name,
@@ -131,7 +146,7 @@ export const processPropertyDetail = (property: any): PropertyDetail => {
           type: property.cities.type,
         }
       : null,
-    property_pictures: property.property_pictures,
+    property_pictures: propertyPicturesWithUrls,
     available_rooms: availableRooms,
   };
 };
