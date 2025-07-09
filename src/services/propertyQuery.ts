@@ -15,6 +15,10 @@ import {
   ValidatedOwnedRoomsParams,
   ValidatedRoomEditParams,
   ValidatedUpdateRoomParams,
+  ValidatedGetUnavailabilitiesParams,
+  ValidatedCreateUnavailabilityParams,
+  ValidatedDeleteUnavailabilityParams,
+  ValidatedListRoomUnavailParams,
 } from "./propertyValidation";
 
 const prisma = new PrismaClient();
@@ -934,13 +938,11 @@ export const createRoom = async (
   return newRoom;
 };
 
-export const getOwnedRooms = async (
+export const getOwnedRooms = (
   params: ValidatedOwnedRoomsParams,
   userId: string
 ) => {
-  const { page, propertyId } = params;
-  const limit = 5;
-  const offset = (page - 1) * limit;
+  const { page, propertyId, all } = params;
 
   // Build where clause
   const whereClause: any = {
@@ -954,13 +956,49 @@ export const getOwnedRooms = async (
     whereClause.property_id = propertyId;
   }
 
-  // Get total count
-  const totalCount = await prisma.rooms.count({
-    where: whereClause,
-  });
+  // Jika all=true, kembalikan seluruh data tanpa pagination
+  if (all) {
+    return prisma.rooms
+      .findMany({
+        where: whereClause,
+        select: {
+          id: true,
+          name: true,
+          price: true,
+          max_guests: true,
+          quantity: true,
+          created_at: true,
+          updated_at: true,
+          property_id: true,
+          properties: {
+            select: {
+              id: true,
+              name: true,
+            },
+          },
+        },
+        orderBy: { created_at: "desc" },
+      })
+      .then((rooms) => ({
+        data: rooms,
+        pagination: {
+          current_page: 1,
+          total_pages: 1,
+          total_items: rooms.length,
+          items_per_page: rooms.length,
+          has_next_page: false,
+          has_previous_page: false,
+        },
+      }));
+  }
 
-  // Get rooms with pagination
-  const rooms = await prisma.rooms.findMany({
+  // Pagination normal
+  const limit = 5;
+  const offset = (page - 1) * limit;
+
+  // Get total count
+  const totalCountPromise = prisma.rooms.count({ where: whereClause });
+  const roomsPromise = prisma.rooms.findMany({
     where: whereClause,
     select: {
       id: true,
@@ -983,22 +1021,25 @@ export const getOwnedRooms = async (
     take: limit,
   });
 
-  // Calculate pagination info
-  const totalPages = Math.ceil(totalCount / limit);
-  const hasNextPage = page < totalPages;
-  const hasPreviousPage = page > 1;
+  return Promise.all([roomsPromise, totalCountPromise]).then(
+    ([rooms, totalCount]) => {
+      const totalPages = Math.ceil(totalCount / limit) || 1;
+      const hasNextPage = page < totalPages;
+      const hasPreviousPage = page > 1;
 
-  return {
-    data: rooms,
-    pagination: {
-      current_page: page,
-      total_pages: totalPages,
-      total_items: totalCount,
-      items_per_page: limit,
-      has_next_page: hasNextPage,
-      has_previous_page: hasPreviousPage,
-    },
-  };
+      return {
+        data: rooms,
+        pagination: {
+          current_page: page,
+          total_pages: totalPages,
+          total_items: totalCount,
+          items_per_page: limit,
+          has_next_page: hasNextPage,
+          has_previous_page: hasPreviousPage,
+        },
+      };
+    }
+  );
 };
 
 export const getRoomForEdit = async (
@@ -1213,4 +1254,272 @@ export const deleteRoomById = async (
       message: "Terjadi kesalahan saat menghapus room",
     };
   }
+};
+
+// Room Unavailabilities Query Functions
+
+export const getRoomUnavailabilitiesByProperty = async (
+  params: ValidatedGetUnavailabilitiesParams,
+  tenantId: string
+) => {
+  const { propertyId, page } = params;
+  const itemsPerPage = 5;
+  const skip = (page - 1) * itemsPerPage;
+
+  // Verifikasi bahwa property milik tenant
+  const property = await prisma.properties.findFirst({
+    where: {
+      id: propertyId,
+      tenant_id: tenantId,
+    },
+  });
+
+  if (!property) {
+    return null;
+  }
+
+  // Get total count
+  const totalCount = await prisma.room_unavailabilities.count({
+    where: {
+      rooms: {
+        property_id: propertyId,
+      },
+    },
+  });
+
+  // Get paginated data
+  const unavailabilities = await prisma.room_unavailabilities.findMany({
+    where: {
+      rooms: {
+        property_id: propertyId,
+      },
+    },
+    include: {
+      rooms: {
+        select: {
+          id: true,
+          name: true,
+        },
+      },
+    },
+    orderBy: {
+      start_date: "desc",
+    },
+    skip,
+    take: itemsPerPage,
+  });
+
+  const totalPages = Math.ceil(totalCount / itemsPerPage);
+
+  return {
+    data: unavailabilities,
+    pagination: {
+      current_page: page,
+      total_pages: totalPages,
+      total_items: totalCount,
+      items_per_page: itemsPerPage,
+      has_next_page: page < totalPages,
+      has_prev_page: page > 1,
+    },
+  };
+};
+
+export const createRoomUnavailability = async (
+  params: ValidatedCreateUnavailabilityParams,
+  tenantId: string
+): Promise<{ success: boolean; message: string; data?: any }> => {
+  try {
+    const { roomId, startDate, endDate } = params;
+
+    // Verifikasi bahwa room milik tenant melalui property relation
+    const room = await prisma.rooms.findFirst({
+      where: {
+        id: roomId,
+        properties: {
+          tenant_id: tenantId,
+        },
+      },
+    });
+
+    if (!room) {
+      return {
+        success: false,
+        message: "Room tidak ditemukan atau bukan milik Anda",
+      };
+    }
+
+    // Cek overlap dengan unavailability yang sudah ada
+    const existingUnavailability = await prisma.room_unavailabilities.findFirst(
+      {
+        where: {
+          room_id: roomId,
+          OR: [
+            // Start date berada dalam range existing
+            {
+              AND: [
+                { start_date: { lte: startDate } },
+                { end_date: { gt: startDate } },
+              ],
+            },
+            // End date berada dalam range existing
+            {
+              AND: [
+                { start_date: { lt: endDate } },
+                { end_date: { gte: endDate } },
+              ],
+            },
+            // Range baru mencakup existing range
+            {
+              AND: [
+                { start_date: { gte: startDate } },
+                { end_date: { lte: endDate } },
+              ],
+            },
+          ],
+        },
+      }
+    );
+
+    if (existingUnavailability) {
+      return {
+        success: false,
+        message:
+          "Tanggal yang dipilih bertabrakan dengan unavailability yang sudah ada",
+      };
+    }
+
+    // Create unavailability
+    const unavailability = await prisma.room_unavailabilities.create({
+      data: {
+        room_id: roomId,
+        start_date: startDate,
+        end_date: endDate,
+      },
+      include: {
+        rooms: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
+      },
+    });
+
+    return {
+      success: true,
+      message: "Room unavailability berhasil dibuat",
+      data: unavailability,
+    };
+  } catch (error) {
+    console.error("Error creating room unavailability:", error);
+    return {
+      success: false,
+      message: "Terjadi kesalahan saat membuat room unavailability",
+    };
+  }
+};
+
+export const deleteRoomUnavailabilityById = async (
+  params: ValidatedDeleteUnavailabilityParams,
+  tenantId: string
+): Promise<{ success: boolean; message: string; data?: any }> => {
+  try {
+    const { unavailabilityId } = params;
+
+    // Verifikasi bahwa unavailability milik tenant melalui room->property relation
+    const unavailability = await prisma.room_unavailabilities.findFirst({
+      where: {
+        id: unavailabilityId,
+        rooms: {
+          properties: {
+            tenant_id: tenantId,
+          },
+        },
+      },
+      include: {
+        rooms: {
+          select: {
+            id: true,
+            name: true,
+            properties: {
+              select: {
+                name: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!unavailability) {
+      return {
+        success: false,
+        message: "Room unavailability tidak ditemukan atau bukan milik Anda",
+      };
+    }
+
+    // Delete unavailability
+    const deletedUnavailability = await prisma.room_unavailabilities.delete({
+      where: {
+        id: unavailabilityId,
+      },
+    });
+
+    return {
+      success: true,
+      message: "Room unavailability berhasil dihapus",
+      data: deletedUnavailability,
+    };
+  } catch (error) {
+    console.error("Error deleting room unavailability:", error);
+    return {
+      success: false,
+      message: "Terjadi kesalahan saat menghapus room unavailability",
+    };
+  }
+};
+
+// Room Unavailabilities LIST by Room & Month
+export const getRoomUnavailabilitiesByRoom = async (
+  params: ValidatedListRoomUnavailParams,
+  tenantId: string
+): Promise<{ success: boolean; message: string; data?: any[] }> => {
+  const { roomId, startDate, endDate } = params;
+
+  // Verifikasi room milik tenant
+  const room = await prisma.rooms.findFirst({
+    where: {
+      id: roomId,
+      properties: {
+        tenant_id: tenantId,
+      },
+    },
+  });
+
+  if (!room) {
+    return {
+      success: false,
+      message: "Room tidak ditemukan atau bukan milik Anda",
+    };
+  }
+
+  // Ambil unavailabilities yang overlap dengan rentang bulan
+  const unavailabilities = await prisma.room_unavailabilities.findMany({
+    where: {
+      room_id: roomId,
+      start_date: { lt: endDate },
+      end_date: { gte: startDate },
+    },
+    orderBy: {
+      start_date: "asc",
+    },
+    select: {
+      id: true,
+      room_id: true,
+      start_date: true,
+      end_date: true,
+    },
+  });
+
+  return { success: true, message: "success", data: unavailabilities };
 };

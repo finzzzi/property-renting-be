@@ -953,20 +953,48 @@ export const validateCreateRoomParams = (
 interface OwnedRoomsParams {
   page?: string;
   property_id?: string;
+  all?: string;
 }
 
 export interface ValidatedOwnedRoomsParams {
   page: number;
   propertyId?: number;
+  all: boolean;
 }
 
 export const validateOwnedRoomsParams = (
   query: OwnedRoomsParams,
   res: Response
 ): ValidatedOwnedRoomsParams | null => {
-  const { page, property_id } = query;
+  // Ambil parameter
+  const { page, property_id, all } = query;
 
-  // Validasi page number
+  // Cek apakah parameter all=true
+  const allFlag = typeof all === "string" && all.toLowerCase() === "true";
+
+  // Jika all=true, abaikan pagination (kembalikan page=1 sebagai placeholder)
+  if (allFlag) {
+    // Validasi property_id jika ada
+    let propertyId: number | undefined;
+    if (property_id) {
+      propertyId = parseInt(property_id);
+      if (isNaN(propertyId) || propertyId <= 0) {
+        res.status(400).json({
+          success: false,
+          message: "Property ID harus berupa angka positif",
+        });
+        return null;
+      }
+    }
+
+    return {
+      page: 1,
+      propertyId,
+      all: true,
+    };
+  }
+
+  // Jika all !== true, lakukan validasi pagination normal
   const pageNumber = parseInt(page as string) || 1;
   if (pageNumber < 1) {
     res.status(400).json({
@@ -992,6 +1020,7 @@ export const validateOwnedRoomsParams = (
   return {
     page: pageNumber,
     propertyId,
+    all: false,
   };
 };
 
@@ -1197,5 +1226,288 @@ export const validateDeleteRoomParams = (
 
   return {
     roomId,
+  };
+};
+
+// Room Unavailabilities Validation Interfaces and Functions
+
+interface GetUnavailabilitiesParams {
+  property_id?: string;
+  page?: string;
+}
+
+export interface ValidatedGetUnavailabilitiesParams {
+  propertyId: number;
+  page: number;
+}
+
+export const validateGetUnavailabilitiesParams = (
+  query: GetUnavailabilitiesParams,
+  res: Response
+): ValidatedGetUnavailabilitiesParams | null => {
+  const { property_id, page } = query;
+
+  // Validasi property_id wajib
+  if (!property_id) {
+    res.status(400).json({
+      success: false,
+      message: "Property ID harus diisi",
+    });
+    return null;
+  }
+
+  const propertyId = parseInt(property_id);
+
+  if (isNaN(propertyId) || propertyId <= 0) {
+    res.status(400).json({
+      success: false,
+      message: "Property ID harus berupa angka positif",
+    });
+    return null;
+  }
+
+  // Validasi page (default 1)
+  const pageNumber = parseInt(page as string) || 1;
+
+  if (pageNumber < 1) {
+    res.status(400).json({
+      success: false,
+      message: "Page number harus lebih besar dari 0",
+    });
+    return null;
+  }
+
+  return {
+    propertyId,
+    page: pageNumber,
+  };
+};
+
+interface CreateUnavailabilityParams {
+  room_id?: string;
+  start_date?: string;
+  end_date?: string;
+}
+
+export interface ValidatedCreateUnavailabilityParams {
+  roomId: number;
+  startDate: Date;
+  endDate: Date;
+}
+
+export const validateCreateUnavailabilityParams = (
+  body: CreateUnavailabilityParams,
+  res: Response
+): ValidatedCreateUnavailabilityParams | null => {
+  const { room_id, start_date, end_date } = body;
+
+  // Validasi room_id wajib
+  if (!room_id) {
+    res.status(400).json({
+      success: false,
+      message: "Room ID harus diisi",
+    });
+    return null;
+  }
+
+  const roomId = parseInt(room_id);
+
+  if (isNaN(roomId) || roomId <= 0) {
+    res.status(400).json({
+      success: false,
+      message: "Room ID harus berupa angka positif",
+    });
+    return null;
+  }
+
+  // Validasi start_date wajib
+  if (!start_date) {
+    res.status(400).json({
+      success: false,
+      message: "Start date harus diisi",
+    });
+    return null;
+  }
+
+  // Validasi end_date wajib
+  if (!end_date) {
+    res.status(400).json({
+      success: false,
+      message: "End date harus diisi",
+    });
+    return null;
+  }
+
+  const startDate = new Date(start_date);
+  const endDate = new Date(end_date);
+
+  // Validasi format tanggal
+  if (isNaN(startDate.getTime())) {
+    res.status(400).json({
+      success: false,
+      message: "Format start date tidak valid",
+    });
+    return null;
+  }
+
+  if (isNaN(endDate.getTime())) {
+    res.status(400).json({
+      success: false,
+      message: "Format end date tidak valid",
+    });
+    return null;
+  }
+
+  // Validasi tanggal tidak boleh di masa lalu
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  startDate.setHours(0, 0, 0, 0);
+  endDate.setHours(0, 0, 0, 0);
+
+  if (startDate < today) {
+    res.status(400).json({
+      success: false,
+      message: "Start date tidak boleh di masa lalu",
+    });
+    return null;
+  }
+
+  // Validasi end_date harus setelah atau sama dengan start_date
+  if (endDate < startDate) {
+    res.status(400).json({
+      success: false,
+      message: "End date harus setelah atau sama dengan start date",
+    });
+    return null;
+  }
+
+  // Validasi maksimal 1 tahun ke depan
+  const maxDate = new Date();
+  maxDate.setFullYear(maxDate.getFullYear() + 1);
+
+  if (endDate > maxDate) {
+    res.status(400).json({
+      success: false,
+      message: "Unavailability tidak boleh lebih dari 1 tahun ke depan",
+    });
+    return null;
+  }
+
+  return {
+    roomId,
+    startDate,
+    endDate,
+  };
+};
+
+interface DeleteUnavailabilityParams {
+  id?: string;
+}
+
+export interface ValidatedDeleteUnavailabilityParams {
+  unavailabilityId: number;
+}
+
+export const validateDeleteUnavailabilityParams = (
+  params: DeleteUnavailabilityParams,
+  res: Response
+): ValidatedDeleteUnavailabilityParams | null => {
+  const { id } = params;
+
+  if (!id) {
+    res.status(400).json({
+      success: false,
+      message: "Unavailability ID harus diisi",
+    });
+    return null;
+  }
+
+  const unavailabilityId = parseInt(id);
+
+  if (isNaN(unavailabilityId) || unavailabilityId <= 0) {
+    res.status(400).json({
+      success: false,
+      message: "Unavailability ID harus berupa angka positif",
+    });
+    return null;
+  }
+
+  return {
+    unavailabilityId,
+  };
+};
+
+// ================= Room Unavailabilities LIST by Room =================
+
+interface ListRoomUnavailParams {
+  room_id?: string;
+  month?: string; // Format YYYY-MM
+}
+
+export interface ValidatedListRoomUnavailParams {
+  roomId: number;
+  startDate: Date;
+  endDate: Date;
+}
+
+export const validateListRoomUnavailParams = (
+  query: ListRoomUnavailParams,
+  res: Response
+): ValidatedListRoomUnavailParams | null => {
+  const { room_id, month } = query;
+
+  // room_id wajib
+  if (!room_id) {
+    res.status(400).json({
+      success: false,
+      message: "room_id harus diisi",
+    });
+    return null;
+  }
+
+  const roomId = parseInt(room_id);
+  if (isNaN(roomId) || roomId <= 0) {
+    res.status(400).json({
+      success: false,
+      message: "room_id harus berupa angka positif",
+    });
+    return null;
+  }
+
+  // Jika month tidak diisi, gunakan bulan & tahun saat ini
+  let year: number;
+  let monthIndex: number; // 0-11
+  if (month) {
+    const match = month.match(/^(\d{4})-(\d{2})$/);
+    if (!match) {
+      res.status(400).json({
+        success: false,
+        message: "Format month harus YYYY-MM",
+      });
+      return null;
+    }
+    year = parseInt(match[1]);
+    monthIndex = parseInt(match[2]) - 1; // JS month index
+    if (monthIndex < 0 || monthIndex > 11) {
+      res.status(400).json({
+        success: false,
+        message: "Nilai month tidak valid",
+      });
+      return null;
+    }
+  } else {
+    const today = new Date();
+    year = today.getUTCFullYear();
+    monthIndex = today.getUTCMonth();
+  }
+
+  // Hitung startDate dan endDate (awal bulan, awal bulan berikutnya)
+  const startDate = new Date(Date.UTC(year, monthIndex, 1));
+  const endDate = new Date(Date.UTC(year, monthIndex + 1, 1)); // exclusive
+
+  return {
+    roomId,
+    startDate,
+    endDate,
   };
 };

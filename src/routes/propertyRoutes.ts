@@ -20,6 +20,11 @@ import {
   deleteRoomById,
 } from "../controllers/propertyController";
 import {
+  getRoomUnavailabilities,
+  createRoomUnavailabilityEntry,
+  deleteRoomUnavailabilityEntry,
+} from "../controllers/roomUnavailabilityController";
+import {
   authenticateUser,
   requireTenantRole,
 } from "../middleware/authMiddleware";
@@ -124,6 +129,28 @@ router.delete(
   authenticateUser,
   requireTenantRole,
   deleteRoomById
+);
+
+// Room Unavailabilities routes
+router.get(
+  "/rooms/unavailabilities",
+  authenticateUser,
+  requireTenantRole,
+  getRoomUnavailabilities
+);
+
+router.post(
+  "/rooms/unavailabilities",
+  authenticateUser,
+  requireTenantRole,
+  createRoomUnavailabilityEntry
+);
+
+router.delete(
+  "/rooms/unavailabilities/:id",
+  authenticateUser,
+  requireTenantRole,
+  deleteRoomUnavailabilityEntry
 );
 
 export default router;
