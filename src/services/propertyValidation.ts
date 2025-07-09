@@ -1511,3 +1511,305 @@ export const validateListRoomUnavailParams = (
     endDate,
   };
 };
+
+// ================= Peak Season Rates Validation =================
+
+interface ListPeakSeasonParams {
+  room_id?: string;
+  month?: string; // optional YYYY-MM
+}
+
+export interface ValidatedListPeakSeasonParams {
+  roomId: number;
+  startDate?: Date; // inclusive
+  endDate?: Date; // exclusive
+}
+
+export const validateListPeakSeasonParams = (
+  query: ListPeakSeasonParams,
+  res: Response
+): ValidatedListPeakSeasonParams | null => {
+  const { room_id, month } = query;
+
+  if (!room_id) {
+    res.status(400).json({ success: false, message: "room_id harus diisi" });
+    return null;
+  }
+  const roomId = parseInt(room_id);
+  if (isNaN(roomId) || roomId <= 0) {
+    res
+      .status(400)
+      .json({ success: false, message: "room_id harus berupa angka positif" });
+    return null;
+  }
+
+  if (month) {
+    const match = month.match(/^(\d{4})-(\d{2})$/);
+    if (!match) {
+      res
+        .status(400)
+        .json({ success: false, message: "Format month harus YYYY-MM" });
+      return null;
+    }
+    const year = parseInt(match[1]);
+    const monthIndex = parseInt(match[2]) - 1;
+    if (monthIndex < 0 || monthIndex > 11) {
+      res
+        .status(400)
+        .json({ success: false, message: "Nilai month tidak valid" });
+      return null;
+    }
+    const startDate = new Date(Date.UTC(year, monthIndex, 1));
+    const endDate = new Date(Date.UTC(year, monthIndex + 1, 1));
+    return { roomId, startDate, endDate };
+  }
+
+  // tanpa filter bulan
+  return { roomId };
+};
+
+interface CreatePeakSeasonParams {
+  room_id?: string;
+  type?: string;
+  value?: string;
+  start_date?: string;
+  end_date?: string;
+}
+
+export interface ValidatedCreatePeakSeasonParams {
+  roomId: number;
+  type: "percentage" | "fixed";
+  value: number;
+  startDate: Date;
+  endDate: Date;
+}
+
+export const validateCreatePeakSeasonParams = (
+  body: CreatePeakSeasonParams,
+  res: Response
+): ValidatedCreatePeakSeasonParams | null => {
+  const { room_id, type, value, start_date, end_date } = body;
+
+  if (!room_id || !type || !value || !start_date || !end_date) {
+    res
+      .status(400)
+      .json({
+        success: false,
+        message: "room_id, type, value, start_date, end_date wajib diisi",
+      });
+    return null;
+  }
+  const roomId = parseInt(room_id);
+  if (isNaN(roomId) || roomId <= 0) {
+    res
+      .status(400)
+      .json({ success: false, message: "room_id harus berupa angka positif" });
+    return null;
+  }
+
+  if (type !== "percentage" && type !== "fixed") {
+    res
+      .status(400)
+      .json({
+        success: false,
+        message: "type harus 'percentage' atau 'fixed'",
+      });
+    return null;
+  }
+
+  const valNumber = parseInt(value);
+  if (isNaN(valNumber) || valNumber <= 0) {
+    res
+      .status(400)
+      .json({ success: false, message: "value harus berupa angka positif" });
+    return null;
+  }
+  if (type === "percentage" && valNumber > 100) {
+    res
+      .status(400)
+      .json({ success: false, message: "value persen tidak boleh > 100" });
+    return null;
+  }
+
+  const startDate = new Date(start_date);
+  const endDate = new Date(end_date);
+  if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+    res
+      .status(400)
+      .json({ success: false, message: "Format tanggal tidak valid" });
+    return null;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  startDate.setHours(0, 0, 0, 0);
+  endDate.setHours(0, 0, 0, 0);
+
+  if (startDate < today) {
+    res
+      .status(400)
+      .json({ success: false, message: "start_date tidak boleh di masa lalu" });
+    return null;
+  }
+  if (endDate < startDate) {
+    res
+      .status(400)
+      .json({
+        success: false,
+        message: "end_date harus setelah atau sama dengan start_date",
+      });
+    return null;
+  }
+
+  return { roomId, type, value: valNumber, startDate, endDate };
+};
+
+interface UpdatePeakSeasonParams {
+  id?: string; // from URL param
+}
+
+export interface ValidatedUpdatePeakSeasonParams {
+  id: number;
+  type?: "percentage" | "fixed";
+  value?: number;
+  startDate?: Date;
+  endDate?: Date;
+}
+
+export const validateUpdatePeakSeasonParams = (
+  params: UpdatePeakSeasonParams,
+  body: any,
+  res: Response
+): ValidatedUpdatePeakSeasonParams | null => {
+  const { id } = params;
+  if (!id) {
+    res.status(400).json({ success: false, message: "ID harus diisi" });
+    return null;
+  }
+  const rateId = parseInt(id);
+  if (isNaN(rateId) || rateId <= 0) {
+    res
+      .status(400)
+      .json({ success: false, message: "ID harus berupa angka positif" });
+    return null;
+  }
+
+  const { type, value, start_date, end_date } = body;
+  if (
+    type === undefined &&
+    value === undefined &&
+    start_date === undefined &&
+    end_date === undefined
+  ) {
+    res
+      .status(400)
+      .json({ success: false, message: "Minimal satu field harus diupdate" });
+    return null;
+  }
+
+  const result: ValidatedUpdatePeakSeasonParams = { id: rateId };
+  if (type !== undefined) {
+    if (type !== "percentage" && type !== "fixed") {
+      res
+        .status(400)
+        .json({
+          success: false,
+          message: "type harus 'percentage' atau 'fixed'",
+        });
+      return null;
+    }
+    result.type = type;
+  }
+  if (value !== undefined) {
+    const valNum = parseInt(value);
+    if (isNaN(valNum) || valNum <= 0) {
+      res
+        .status(400)
+        .json({ success: false, message: "value harus angka positif" });
+      return null;
+    }
+    if (
+      result.type === "percentage" ||
+      (type === undefined && value !== undefined)
+    ) {
+      // ketika type percentage
+      const pctType = result.type === "percentage" || type === "percentage";
+      if (pctType && valNum > 100) {
+        res
+          .status(400)
+          .json({ success: false, message: "value persen tidak boleh > 100" });
+        return null;
+      }
+    }
+    result.value = valNum;
+  }
+  if (start_date !== undefined) {
+    const sd = new Date(start_date);
+    if (isNaN(sd.getTime())) {
+      res
+        .status(400)
+        .json({ success: false, message: "Format start_date tidak valid" });
+      return null;
+    }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    sd.setHours(0, 0, 0, 0);
+    if (sd < today) {
+      res
+        .status(400)
+        .json({
+          success: false,
+          message: "start_date tidak boleh di masa lalu",
+        });
+      return null;
+    }
+    result.startDate = sd;
+  }
+  if (end_date !== undefined) {
+    const ed = new Date(end_date);
+    if (isNaN(ed.getTime())) {
+      res
+        .status(400)
+        .json({ success: false, message: "Format end_date tidak valid" });
+      return null;
+    }
+    if (result.startDate && ed < result.startDate) {
+      res
+        .status(400)
+        .json({ success: false, message: "end_date harus ≥ start_date" });
+      return null;
+    }
+    result.endDate = ed;
+  }
+
+  // if only endDate set but startDate previously unsupplied, we will validate in query when mixing existing data.
+
+  return result;
+};
+
+interface DeletePeakSeasonParams {
+  id?: string;
+}
+
+export interface ValidatedDeletePeakSeasonParams {
+  id: number;
+}
+
+export const validateDeletePeakSeasonParams = (
+  params: DeletePeakSeasonParams,
+  res: Response
+): ValidatedDeletePeakSeasonParams | null => {
+  const { id } = params;
+  if (!id) {
+    res.status(400).json({ success: false, message: "ID harus diisi" });
+    return null;
+  }
+  const rateId = parseInt(id);
+  if (isNaN(rateId) || rateId <= 0) {
+    res
+      .status(400)
+      .json({ success: false, message: "ID harus berupa angka positif" });
+    return null;
+  }
+  return { id: rateId };
+};

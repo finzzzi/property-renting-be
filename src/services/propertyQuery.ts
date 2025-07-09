@@ -19,6 +19,10 @@ import {
   ValidatedCreateUnavailabilityParams,
   ValidatedDeleteUnavailabilityParams,
   ValidatedListRoomUnavailParams,
+  ValidatedListPeakSeasonParams,
+  ValidatedCreatePeakSeasonParams,
+  ValidatedUpdatePeakSeasonParams,
+  ValidatedDeletePeakSeasonParams,
 } from "./propertyValidation";
 
 const prisma = new PrismaClient();
@@ -1522,4 +1526,237 @@ export const getRoomUnavailabilitiesByRoom = async (
   });
 
   return { success: true, message: "success", data: unavailabilities };
+};
+
+// Peak Season Rates Query Functions
+export const getPeakSeasonRatesByRoom = async (
+  params: ValidatedListPeakSeasonParams,
+  tenantId: string
+): Promise<{ success: boolean; message: string; data?: any[] }> => {
+  const { roomId, startDate, endDate } = params;
+
+  // Verify room ownership
+  const room = await prisma.rooms.findFirst({
+    where: {
+      id: roomId,
+      properties: {
+        tenant_id: tenantId,
+      },
+    },
+  });
+  if (!room) {
+    return {
+      success: false,
+      message: "Room tidak ditemukan atau bukan milik Anda",
+    };
+  }
+
+  const whereClause: any = { room_id: roomId };
+  if (startDate && endDate) {
+    whereClause.start_date = { lt: endDate };
+    whereClause.end_date = { gte: startDate };
+  }
+
+  const rates = await prisma.peak_season_rates.findMany({
+    where: whereClause,
+    orderBy: { start_date: "asc" },
+    select: {
+      id: true,
+      room_id: true,
+      type: true,
+      value: true,
+      start_date: true,
+      end_date: true,
+    },
+  });
+
+  return { success: true, message: "success", data: rates };
+};
+
+export const createPeakSeasonRate = async (
+  params: ValidatedCreatePeakSeasonParams,
+  tenantId: string
+): Promise<{ success: boolean; message: string; data?: any }> => {
+  const { roomId, type, value, startDate, endDate } = params;
+
+  // Verify room ownership
+  const room = await prisma.rooms.findFirst({
+    where: { id: roomId, properties: { tenant_id: tenantId } },
+  });
+  if (!room)
+    return {
+      success: false,
+      message: "Room tidak ditemukan atau bukan milik Anda",
+    };
+
+  // Overlap check
+  const overlap = await prisma.peak_season_rates.findFirst({
+    where: {
+      room_id: roomId,
+      OR: [
+        {
+          AND: [
+            { start_date: { lte: startDate } },
+            { end_date: { gt: startDate } },
+          ],
+        },
+        {
+          AND: [
+            { start_date: { lt: endDate } },
+            { end_date: { gte: endDate } },
+          ],
+        },
+        {
+          AND: [
+            { start_date: { gte: startDate } },
+            { end_date: { lte: endDate } },
+          ],
+        },
+      ],
+    },
+  });
+  if (overlap) {
+    return {
+      success: false,
+      message: "Tanggal bertabrakan dengan peak season rate lain",
+    };
+  }
+
+  const rate = await prisma.peak_season_rates.create({
+    data: {
+      room_id: roomId,
+      type,
+      value,
+      start_date: startDate,
+      end_date: endDate,
+    },
+    select: {
+      id: true,
+      room_id: true,
+      type: true,
+      value: true,
+      start_date: true,
+      end_date: true,
+    },
+  });
+  return {
+    success: true,
+    message: "Peak season rate berhasil dibuat",
+    data: rate,
+  };
+};
+
+export const updatePeakSeasonRateById = async (
+  params: ValidatedUpdatePeakSeasonParams,
+  body: ValidatedUpdatePeakSeasonParams,
+  tenantId: string
+): Promise<{ success: boolean; message: string; data?: any }> => {
+  const { id } = params;
+
+  // Get existing rate & verify ownership via room->property
+  const existing = await prisma.peak_season_rates.findFirst({
+    where: { id, rooms: { properties: { tenant_id: tenantId } } },
+  });
+  if (!existing)
+    return {
+      success: false,
+      message: "Peak season rate tidak ditemukan atau bukan milik Anda",
+    };
+
+  const updateData: any = {};
+  if (body.type !== undefined) updateData.type = body.type;
+  if (body.value !== undefined) updateData.value = body.value;
+  if (body.startDate !== undefined) updateData.start_date = body.startDate;
+  if (body.endDate !== undefined) updateData.end_date = body.endDate;
+  updateData.updated_at = new Date();
+
+  // Determine final start/end for overlap check
+  const newStart = body.startDate ?? existing.start_date;
+  const newEnd = body.endDate ?? existing.end_date;
+
+  // Check date logic again (end >= start)
+  if (newEnd < newStart) {
+    return { success: false, message: "end_date harus ≥ start_date" };
+  }
+
+  // Overlap check excluding current rate
+  const overlap = await prisma.peak_season_rates.findFirst({
+    where: {
+      id: { not: id },
+      room_id: existing.room_id,
+      OR: [
+        {
+          AND: [
+            { start_date: { lte: newStart } },
+            { end_date: { gt: newStart } },
+          ],
+        },
+        {
+          AND: [{ start_date: { lt: newEnd } }, { end_date: { gte: newEnd } }],
+        },
+        {
+          AND: [
+            { start_date: { gte: newStart } },
+            { end_date: { lte: newEnd } },
+          ],
+        },
+      ],
+    },
+  });
+  if (overlap)
+    return {
+      success: false,
+      message: "Tanggal bertabrakan dengan peak season rate lain",
+    };
+
+  const updated = await prisma.peak_season_rates.update({
+    where: { id },
+    data: updateData,
+    select: {
+      id: true,
+      room_id: true,
+      type: true,
+      value: true,
+      start_date: true,
+      end_date: true,
+    },
+  });
+
+  return {
+    success: true,
+    message: "Peak season rate berhasil diperbarui",
+    data: updated,
+  };
+};
+
+export const deletePeakSeasonRateById = async (
+  params: ValidatedDeletePeakSeasonParams,
+  tenantId: string
+): Promise<{ success: boolean; message: string; data?: any }> => {
+  const { id } = params;
+  const rate = await prisma.peak_season_rates.findFirst({
+    where: { id, rooms: { properties: { tenant_id: tenantId } } },
+  });
+  if (!rate)
+    return {
+      success: false,
+      message: "Peak season rate tidak ditemukan atau bukan milik Anda",
+    };
+
+  const deleted = await prisma.peak_season_rates.delete({
+    where: { id },
+    select: {
+      id: true,
+      room_id: true,
+      type: true,
+      value: true,
+      start_date: true,
+      end_date: true,
+    },
+  });
+  return {
+    success: true,
+    message: "Peak season rate berhasil dihapus",
+    data: deleted,
+  };
 };

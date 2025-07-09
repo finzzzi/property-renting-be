@@ -25,6 +25,12 @@ import {
   deleteRoomUnavailabilityEntry,
 } from "../controllers/roomUnavailabilityController";
 import {
+  getPeakSeasonRates,
+  createPeakSeasonRateEntry,
+  updatePeakSeasonRateEntry,
+  deletePeakSeasonRateEntry,
+} from "../controllers/peakSeasonController";
+import {
   authenticateUser,
   requireTenantRole,
 } from "../middleware/authMiddleware";
@@ -151,6 +157,35 @@ router.delete(
   authenticateUser,
   requireTenantRole,
   deleteRoomUnavailabilityEntry
+);
+
+// Peak Season Rates routes
+router.get(
+  "/rooms/peak-season",
+  authenticateUser,
+  requireTenantRole,
+  getPeakSeasonRates
+);
+
+router.post(
+  "/rooms/peak-season",
+  authenticateUser,
+  requireTenantRole,
+  createPeakSeasonRateEntry
+);
+
+router.put(
+  "/rooms/peak-season/:id",
+  authenticateUser,
+  requireTenantRole,
+  updatePeakSeasonRateEntry
+);
+
+router.delete(
+  "/rooms/peak-season/:id",
+  authenticateUser,
+  requireTenantRole,
+  deletePeakSeasonRateEntry
 );
 
 export default router;
