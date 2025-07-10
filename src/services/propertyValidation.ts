@@ -1367,7 +1367,7 @@ export const validateCreateUnavailabilityParams = (
   if (startDate < today) {
     res.status(400).json({
       success: false,
-      message: "Start date tidak boleh di masa lalu",
+      message: "Tanggal tidak boleh di masa lalu",
     });
     return null;
   }
@@ -1591,12 +1591,10 @@ export const validateCreatePeakSeasonParams = (
   const { room_id, type, value, start_date, end_date } = body;
 
   if (!room_id || !type || !value || !start_date || !end_date) {
-    res
-      .status(400)
-      .json({
-        success: false,
-        message: "room_id, type, value, start_date, end_date wajib diisi",
-      });
+    res.status(400).json({
+      success: false,
+      message: "room_id, type, value, start_date, end_date wajib diisi",
+    });
     return null;
   }
   const roomId = parseInt(room_id);
@@ -1608,12 +1606,10 @@ export const validateCreatePeakSeasonParams = (
   }
 
   if (type !== "percentage" && type !== "fixed") {
-    res
-      .status(400)
-      .json({
-        success: false,
-        message: "type harus 'percentage' atau 'fixed'",
-      });
+    res.status(400).json({
+      success: false,
+      message: "type harus 'percentage' atau 'fixed'",
+    });
     return null;
   }
 
@@ -1648,16 +1644,14 @@ export const validateCreatePeakSeasonParams = (
   if (startDate < today) {
     res
       .status(400)
-      .json({ success: false, message: "start_date tidak boleh di masa lalu" });
+      .json({ success: false, message: "Tanggal tidak boleh di masa lalu" });
     return null;
   }
   if (endDate < startDate) {
-    res
-      .status(400)
-      .json({
-        success: false,
-        message: "end_date harus setelah atau sama dengan start_date",
-      });
+    res.status(400).json({
+      success: false,
+      message: "end_date harus setelah atau sama dengan start_date",
+    });
     return null;
   }
 
@@ -1710,12 +1704,10 @@ export const validateUpdatePeakSeasonParams = (
   const result: ValidatedUpdatePeakSeasonParams = { id: rateId };
   if (type !== undefined) {
     if (type !== "percentage" && type !== "fixed") {
-      res
-        .status(400)
-        .json({
-          success: false,
-          message: "type harus 'percentage' atau 'fixed'",
-        });
+      res.status(400).json({
+        success: false,
+        message: "type harus 'percentage' atau 'fixed'",
+      });
       return null;
     }
     result.type = type;
@@ -1755,12 +1747,10 @@ export const validateUpdatePeakSeasonParams = (
     today.setHours(0, 0, 0, 0);
     sd.setHours(0, 0, 0, 0);
     if (sd < today) {
-      res
-        .status(400)
-        .json({
-          success: false,
-          message: "start_date tidak boleh di masa lalu",
-        });
+      res.status(400).json({
+        success: false,
+        message: "Tanggal tidak boleh di masa lalu",
+      });
       return null;
     }
     result.startDate = sd;
