@@ -786,6 +786,7 @@ export const createNewRoom = async (
     res.status(201).json({
       success: true,
       message: "Room berhasil dibuat",
+      data: newRoom,
     });
   } catch (error) {
     console.error("Error in createNewRoom:", error);
