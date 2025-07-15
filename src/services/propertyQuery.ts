@@ -369,9 +369,8 @@ export const getPropertyCategories = async (
   // Jika tidak, ambil kategori publik (tenant_id null) dan kategori milik tenant
   if (tenantId) {
     whereClause.OR = [{ tenant_id: null }, { tenant_id: tenantId }];
-  } else {
-    whereClause.tenant_id = null; // Hanya kategori publik
   }
+  // else: tanpa tenantId, tidak menambahkan filter sehingga seluruh kategori (publik maupun milik tenant manapun) akan diambil
 
   return await prisma.property_categories.findMany({
     where: whereClause,
@@ -381,8 +380,8 @@ export const getPropertyCategories = async (
       tenant_id: true,
     },
     orderBy: [
-      { tenant_id: "asc" }, // Public categories (null) first
-      { id: "asc" }, // Then sort by name
+      { tenant_id: "desc" }, // Kategori publik (null) dulu
+      { id: "asc" }, // Lalu sort by id
     ],
   });
 };
