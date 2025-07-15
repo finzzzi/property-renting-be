@@ -76,6 +76,7 @@ export interface ProcessedProperty {
 export interface ProcessedRoom {
   id: number;
   name: string;
+  description: string;
   price: number;
   max_guests: number;
   quantity: number;
@@ -84,6 +85,10 @@ export interface ProcessedRoom {
   bookings: Booking[];
   room_unavailabilities: RoomUnavailability[];
   peak_season_rates: PeakSeasonRate[];
+  room_pictures: Array<{
+    id: number;
+    file_path: string | null;
+  }>;
 }
 
 export interface PropertyDetail {
@@ -189,6 +194,7 @@ export interface PrismaPropertyResult {
   rooms: Array<{
     id: number;
     name: string;
+    description: string;
     price: number;
     max_guests: number;
     quantity: number;

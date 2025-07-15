@@ -31,6 +31,7 @@ export interface PropertyWithRooms {
 export interface RoomWithRelations {
   id: number;
   name: string;
+  description: string;
   price: number;
   max_guests: number;
   quantity: number;
@@ -49,7 +50,7 @@ export interface PropertyPictureWithUrl extends PropertyPicture {
 }
 
 export interface ProcessedRoomWithPictures extends ProcessedRoom {
-  room_pictures?: RoomPictureWithUrl[];
+  // Interface ini sudah tidak diperlukan karena ProcessedRoom sudah include room_pictures
 }
 
 export const processRoomsAvailability = (
@@ -85,6 +86,7 @@ export const processRoomsAvailability = (
       availableRooms.push({
         id: room.id,
         name: room.name,
+        description: room.description,
         price: room.price,
         max_guests: room.max_guests,
         quantity: room.quantity,
@@ -93,6 +95,11 @@ export const processRoomsAvailability = (
         bookings: room.bookings,
         room_unavailabilities: room.room_unavailabilities,
         peak_season_rates: room.peak_season_rates,
+        room_pictures:
+          room.room_pictures?.map((pic) => ({
+            id: pic.id || 0,
+            file_path: pic.file_path || null,
+          })) || [],
       });
     }
   }
