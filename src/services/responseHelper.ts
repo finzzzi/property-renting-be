@@ -1,17 +1,42 @@
 import { Response } from "express";
-import { ProcessedProperty, PropertyDetail } from "./propertyProcessor";
+import {
+  ProcessedProperty,
+  PropertyDetail,
+  CategoryData,
+  CalendarData,
+  PaginationOptions,
+  PrismaCategoryResult,
+  PartialPropertyCategory,
+} from "./propertyInterfaces";
+
+export interface SearchPagination {
+  current_page: number;
+  total_pages: number;
+  total_properties: number;
+  has_next_page: boolean;
+  has_prev_page: boolean;
+}
 
 export const sendSuccessResponse = (
   res: Response,
   data: ProcessedProperty[],
-  categories: any[],
-  pagination: any
+  categories: (PartialPropertyCategory | null)[],
+  pagination: SearchPagination
 ) => {
+  // Filter dan transform categories
+  const transformedCategories: CategoryData[] = categories
+    .filter((cat): cat is PartialPropertyCategory => cat !== null)
+    .map((cat, index) => ({
+      id: index + 1, // fallback ID
+      name: cat.name,
+      properties_count: 0, // fallback count
+    }));
+
   res.status(200).json({
     success: true,
     message: "Properties berhasil ditemukan",
     data,
-    categories,
+    categories: transformedCategories,
     pagination,
   });
 };
@@ -31,7 +56,7 @@ export const sendEmptyResponse = (res: Response, pageNumber: number) => {
   });
 };
 
-export const sendErrorResponse = (res: Response, error: any) => {
+export const sendErrorResponse = (res: Response, error: Error | unknown) => {
   console.error("Error in searchProperties:", error);
   res.status(500).json({
     success: false,
@@ -67,7 +92,10 @@ export const sendNoAvailableRoomsResponse = (res: Response) => {
   });
 };
 
-export const sendCalendarResponse = (res: Response, calendarData: any) => {
+export const sendCalendarResponse = (
+  res: Response,
+  calendarData: CalendarData
+) => {
   res.status(200).json({
     status: "success",
     data: calendarData,
@@ -83,13 +111,20 @@ export const sendCalendarNotFoundResponse = (res: Response) => {
 
 export const sendCategoriesSuccessResponse = (
   res: Response,
-  categories: any[]
+  categories: PrismaCategoryResult[]
 ) => {
+  // Transform categories to include properties_count
+  const transformedCategories: CategoryData[] = categories.map((cat) => ({
+    id: cat.id,
+    name: cat.name,
+    properties_count: 0, // Bisa ditambahkan query count jika dibutuhkan
+  }));
+
   res.status(200).json({
     success: true,
     message: "Property categories berhasil ditemukan",
-    data: categories,
-    total: categories.length,
+    data: transformedCategories,
+    total: transformedCategories.length,
   });
 };
 

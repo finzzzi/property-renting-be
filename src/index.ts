@@ -17,7 +17,7 @@ app.use("/pictures", pictureRoutes);
 // Global error handling middleware
 app.use(
   (
-    err: any,
+    err: Error,
     req: express.Request,
     res: express.Response,
     next: express.NextFunction

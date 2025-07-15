@@ -1,4 +1,4 @@
-import { PrismaClient } from "../../generated/prisma";
+import { PrismaClient, Prisma } from "../../generated/prisma";
 import {
   ValidatedSearchParams,
   ValidatedDetailParams,
@@ -24,13 +24,26 @@ import {
   ValidatedUpdatePeakSeasonParams,
   ValidatedDeletePeakSeasonParams,
 } from "./propertyValidation";
+import { ApiResponse, CategoryData } from "./propertyInterfaces";
 
 const prisma = new PrismaClient();
 
-export const buildWhereClause = (params: ValidatedSearchParams) => {
+// Interface untuk Prisma where clause yang spesifik
+type PropertyWhereInput = Prisma.propertiesWhereInput;
+
+// Type alias untuk function response
+type DeleteResponse = Promise<{
+  success: boolean;
+  message: string;
+  data?: any;
+}>;
+
+export const buildWhereClause = (
+  params: ValidatedSearchParams
+): PropertyWhereInput => {
   const { cityId, guestCount, propertyName, categoryName } = params;
 
-  const whereClause: any = {
+  const whereClause: PropertyWhereInput = {
     city_id: cityId,
     rooms: {
       some: {
@@ -79,7 +92,7 @@ export const buildWhereClause = (params: ValidatedSearchParams) => {
 };
 
 export const getAvailableProperties = async (
-  whereClause: any,
+  whereClause: PropertyWhereInput,
   params: ValidatedSearchParams
 ) => {
   const { guestCount, checkInDate, checkOutDate } = params;
@@ -363,7 +376,7 @@ export const getPropertyCategories = async (
 ) => {
   const { tenantId } = params;
 
-  const whereClause: any = {};
+  const whereClause: Prisma.property_categoriesWhereInput = {};
 
   // Jika tenant_id disediakan, filter berdasarkan tenant_id
   // Jika tidak, ambil kategori publik (tenant_id null) dan kategori milik tenant
@@ -454,7 +467,7 @@ export const updateCategory = async (
   }
 
   // Buat object untuk data yang akan diupdate
-  const updateData: any = {};
+  const updateData: Prisma.property_categoriesUpdateInput = {};
 
   if (name !== undefined) {
     updateData.name = name;
@@ -797,7 +810,7 @@ export const updateProperty = async (
     params;
 
   // Buat object untuk data yang akan diupdate
-  const updateData: any = {};
+  const updateData: Prisma.propertiesUpdateInput = {};
 
   if (name !== undefined) {
     updateData.name = name;
@@ -812,11 +825,15 @@ export const updateProperty = async (
   }
 
   if (categoryId !== undefined) {
-    updateData.category_id = categoryId;
+    updateData.property_categories = {
+      connect: { id: categoryId },
+    };
   }
 
   if (cityId !== undefined) {
-    updateData.city_id = cityId;
+    updateData.cities = {
+      connect: { id: cityId },
+    };
   }
 
   // Tambahkan updated_at
@@ -948,7 +965,7 @@ export const getOwnedRooms = (
   const { page, propertyId, all } = params;
 
   // Build where clause
-  const whereClause: any = {
+  const whereClause: Prisma.roomsWhereInput = {
     properties: {
       tenant_id: userId,
     },
@@ -1099,7 +1116,7 @@ export const updateRoom = async (
   }
 
   // Buat object untuk data yang akan diupdate
-  const updateData: any = {};
+  const updateData: Prisma.roomsUpdateInput = {};
 
   if (name !== undefined) {
     updateData.name = name;
@@ -1550,7 +1567,9 @@ export const getPeakSeasonRatesByRoom = async (
     };
   }
 
-  const whereClause: any = { room_id: roomId };
+  const whereClause: Prisma.peak_season_ratesWhereInput = {
+    room_id: roomId,
+  };
   if (startDate && endDate) {
     whereClause.start_date = { lt: endDate };
     whereClause.end_date = { gte: startDate };
@@ -1662,7 +1681,7 @@ export const updatePeakSeasonRateById = async (
       message: "Peak season rate tidak ditemukan atau bukan milik Anda",
     };
 
-  const updateData: any = {};
+  const updateData: Prisma.peak_season_ratesUpdateInput = {};
   if (body.type !== undefined) updateData.type = body.type;
   if (body.value !== undefined) updateData.value = body.value;
   if (body.startDate !== undefined) updateData.start_date = body.startDate;

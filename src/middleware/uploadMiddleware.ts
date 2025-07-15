@@ -36,7 +36,7 @@ export const uploadMultiple = upload.array("files", 10);
 
 // Error handling middleware for multer
 export const handleUploadError = (
-  error: any,
+  error: Error | multer.MulterError,
   req: Request,
   res: Response,
   next: NextFunction

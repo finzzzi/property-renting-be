@@ -1,3 +1,67 @@
+// Interface berdasarkan schema Prisma
+export interface Booking {
+  id: number;
+  guest_id: string;
+  room_id: number | null;
+  check_in: Date;
+  check_out: Date;
+  total_price: number;
+  payment_proof: string | null;
+  status_id: number | null;
+  created_at: Date | null;
+  updated_at: Date | null;
+}
+
+export interface RoomUnavailability {
+  id: number;
+  room_id: number;
+  start_date: Date;
+  end_date: Date;
+  created_at: Date | null;
+}
+
+export interface PeakSeasonRate {
+  id: number;
+  room_id: number | null;
+  type: "percentage" | "fixed";
+  value: number;
+  start_date: Date;
+  end_date: Date;
+  created_at: Date | null;
+  updated_at: Date | null;
+}
+
+export interface PropertyPicture {
+  id: number;
+  property_id: number;
+  file_path: string;
+  is_main: boolean | null;
+  created_at: Date | null;
+}
+
+export interface RoomPicture {
+  id: number;
+  room_id: number | null;
+  file_path: string | null;
+  created_at: Date;
+}
+
+export interface City {
+  id: number;
+  name: string;
+  type: string;
+  created_at: Date | null;
+  updated_at: Date | null;
+}
+
+export interface PropertyCategory {
+  id: number;
+  name: string;
+  tenant_id: string | null;
+  created_at: Date | null;
+  updated_at: Date | null;
+}
+
 export interface ProcessedProperty {
   property_id: number;
   name: string;
@@ -17,9 +81,9 @@ export interface ProcessedRoom {
   quantity: number;
   available_quantity: number;
   final_price: number;
-  bookings: any[];
-  room_unavailabilities: any[];
-  peak_season_rates: any[];
+  bookings: Booking[];
+  room_unavailabilities: RoomUnavailability[];
+  peak_season_rates: PeakSeasonRate[];
 }
 
 export interface PropertyDetail {
@@ -62,4 +126,99 @@ export interface CalendarData {
     prev_month_url: string;
     next_month_url: string;
   };
+}
+
+// Interface untuk response API
+export interface ApiResponse<T = any> {
+  success: boolean;
+  message: string;
+  data?: T;
+}
+
+export interface ApiResponseArray<T = any> {
+  success: boolean;
+  message: string;
+  data?: T[];
+}
+
+// Interface untuk Prisma where clause umum
+export interface PrismaWhereClause {
+  [key: string]: any;
+}
+
+// Interface untuk pagination
+export interface PaginationOptions {
+  current_month: number;
+  current_year: number;
+  has_prev_month: boolean;
+  has_next_month: boolean;
+  prev_month_url: string;
+  next_month_url: string;
+}
+
+// Interface untuk kategori
+export interface CategoryData {
+  id: number;
+  name: string;
+  properties_count: number;
+}
+
+// Interface fleksibel untuk hasil Prisma query
+export interface PartialPropertyCategory {
+  name: string;
+}
+
+export interface PartialCity {
+  name: string;
+  type: string;
+}
+
+export interface PrismaPropertyResult {
+  id: number;
+  name: string;
+  location?: string;
+  description?: string;
+  city_id?: number | null;
+  property_categories?: PartialPropertyCategory | null;
+  cities?: PartialCity | null;
+  property_pictures: Array<{
+    id?: number;
+    file_path: string;
+    is_main?: boolean | null;
+  }>;
+  rooms: Array<{
+    id: number;
+    name: string;
+    price: number;
+    max_guests: number;
+    quantity: number;
+    bookings: Booking[];
+    room_unavailabilities: RoomUnavailability[];
+    peak_season_rates: PeakSeasonRate[];
+    room_pictures?: Array<{
+      id?: number;
+      file_path?: string | null;
+      created_at?: Date;
+    }>;
+  }>;
+}
+
+export interface PrismaCalendarResult {
+  id: number;
+  name: string;
+  rooms: Array<{
+    id: number;
+    name: string;
+    price: number;
+    quantity: number;
+    bookings: Booking[];
+    room_unavailabilities: RoomUnavailability[];
+    peak_season_rates: PeakSeasonRate[];
+  }>;
+}
+
+export interface PrismaCategoryResult {
+  id: number;
+  name: string;
+  tenant_id: string | null;
 }

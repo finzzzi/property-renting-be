@@ -1,24 +1,40 @@
 import { Request, Response } from "express";
 import { PrismaClient } from "../../generated/prisma";
 import { storageService } from "../services/storageService";
+import { PropertyPicture, RoomPicture } from "../services/propertyInterfaces";
 
 const prisma = new PrismaClient();
 
+// Interface untuk response
+interface SuccessResponse<T = any> {
+  success: true;
+  data: T;
+}
+
+interface ErrorResponse {
+  success: false;
+  message: string;
+}
+
+// Interface untuk database error
+interface DatabaseErrorResult {
+  status: number;
+  message: string;
+}
+
 // Helper functions for responses
-const createSuccessResponse = (data: any) => ({
+const createSuccessResponse = <T>(data: T): SuccessResponse<T> => ({
   success: true,
   data: data,
 });
 
-const createErrorResponse = (message: string) => ({
+const createErrorResponse = (message: string): ErrorResponse => ({
   success: false,
   message: message,
 });
 
 // Helper function to handle database constraint errors
-const handleDatabaseError = (
-  error: any
-): { status: number; message: string } => {
+const handleDatabaseError = (error: Error | any): DatabaseErrorResult => {
   // Handle main picture constraint
   if (
     error.message &&
@@ -204,7 +220,7 @@ export class PictureController {
       });
 
       // Add public URLs
-      const picturesWithUrls = pictures.map((picture: any) => ({
+      const picturesWithUrls = pictures.map((picture) => ({
         ...picture,
         public_url: `${process.env.SUPABASE_URL}/storage/v1/object/public/property-pictures/${picture.file_path}`,
       }));

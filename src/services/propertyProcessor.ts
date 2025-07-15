@@ -4,9 +4,57 @@ import {
   PropertyDetail,
   CalendarDay,
   CalendarData,
+  Booking,
+  RoomUnavailability,
+  PeakSeasonRate,
+  PropertyPicture,
+  RoomPicture,
+  PropertyCategory,
+  City,
+  PrismaPropertyResult,
+  PrismaCalendarResult,
 } from "./propertyInterfaces";
 
-export const processRoomsAvailability = (property: any): ProcessedRoom[] => {
+// Interface untuk Prisma query results yang kompleks
+export interface PropertyWithRooms {
+  id: number;
+  name: string;
+  location: string;
+  description?: string;
+  property_categories?: PropertyCategory | null;
+  cities?: City | null;
+  city_id: number;
+  property_pictures: PropertyPicture[];
+  rooms: RoomWithRelations[];
+}
+
+export interface RoomWithRelations {
+  id: number;
+  name: string;
+  price: number;
+  max_guests: number;
+  quantity: number;
+  bookings: Booking[];
+  room_unavailabilities: RoomUnavailability[];
+  peak_season_rates: PeakSeasonRate[];
+  room_pictures?: RoomPictureWithUrl[];
+}
+
+export interface RoomPictureWithUrl extends RoomPicture {
+  public_url?: string;
+}
+
+export interface PropertyPictureWithUrl extends PropertyPicture {
+  public_url?: string;
+}
+
+export interface ProcessedRoomWithPictures extends ProcessedRoom {
+  room_pictures?: RoomPictureWithUrl[];
+}
+
+export const processRoomsAvailability = (
+  property: PrismaPropertyResult
+): ProcessedRoom[] => {
   const availableRooms: ProcessedRoom[] = [];
 
   for (const room of property.rooms) {
@@ -34,18 +82,17 @@ export const processRoomsAvailability = (property: any): ProcessedRoom[] => {
         }
       }
 
-      // Add public URLs for room pictures
-      const roomPicturesWithUrls =
-        room.room_pictures?.map((picture: any) => ({
-          ...picture,
-          public_url: `${process.env.SUPABASE_URL}/storage/v1/object/public/room-pictures/${picture.file_path}`,
-        })) || [];
-
       availableRooms.push({
-        ...room,
+        id: room.id,
+        name: room.name,
+        price: room.price,
+        max_guests: room.max_guests,
+        quantity: room.quantity,
         available_quantity: availableQuantity,
         final_price: finalPrice,
-        room_pictures: roomPicturesWithUrls,
+        bookings: room.bookings,
+        room_unavailabilities: room.room_unavailabilities,
+        peak_season_rates: room.peak_season_rates,
       });
     }
   }
@@ -54,7 +101,7 @@ export const processRoomsAvailability = (property: any): ProcessedRoom[] => {
 };
 
 export const transformPropertyData = (
-  property: any,
+  property: PrismaPropertyResult,
   availableRooms: ProcessedRoom[]
 ): ProcessedProperty => {
   // Ambil harga termurah dari room yang tersedia
@@ -65,9 +112,9 @@ export const transformPropertyData = (
   return {
     property_id: property.id,
     name: property.name,
-    location: property.location,
+    location: property.location || "",
     category: property.property_categories?.name || null,
-    city_id: property.city_id,
+    city_id: property.city_id ?? 0,
     property_pictures:
       property.property_pictures.length > 0
         ? property.property_pictures[0].file_path
@@ -124,21 +171,16 @@ export const applyPagination = (
   };
 };
 
-export const processPropertyDetail = (property: any): PropertyDetail => {
+export const processPropertyDetail = (
+  property: PrismaPropertyResult
+): PropertyDetail => {
   const availableRooms = processRoomsAvailability(property);
-
-  // Add public URLs for property pictures
-  const propertyPicturesWithUrls =
-    property.property_pictures?.map((picture: any) => ({
-      ...picture,
-      public_url: `${process.env.SUPABASE_URL}/storage/v1/object/public/property-pictures/${picture.file_path}`,
-    })) || [];
 
   return {
     property_id: property.id,
     name: property.name,
-    description: property.description,
-    location: property.location,
+    description: property.description || "",
+    location: property.location || "",
     category: property.property_categories?.name || null,
     city: property.cities
       ? {
@@ -146,13 +188,17 @@ export const processPropertyDetail = (property: any): PropertyDetail => {
           type: property.cities.type,
         }
       : null,
-    property_pictures: propertyPicturesWithUrls,
+    property_pictures: property.property_pictures.map((pic) => ({
+      id: pic.id || 0,
+      file_path: pic.file_path,
+      is_main: pic.is_main || false,
+    })),
     available_rooms: availableRooms,
   };
 };
 
 export const processCalendarData = (
-  property: any,
+  property: PrismaCalendarResult,
   year: number,
   month: number,
   propertyId: number
@@ -170,6 +216,15 @@ export const processCalendarData = (
     "Saturday",
   ];
 
+  // Interface untuk available room dalam calendar processing
+  interface AvailableRoomInCalendar {
+    id: number;
+    name: string;
+    price: number;
+    available_quantity: number;
+    final_price: number;
+  }
+
   // Process each day in the month
   for (let day = 1; day <= daysInMonth; day++) {
     const currentDate = new Date(year, month - 1, day);
@@ -180,18 +235,18 @@ export const processCalendarData = (
     const dayOfWeek = dayNames[currentDate.getDay()];
 
     // Check availability and calculate min price for this date
-    const availableRooms: any[] = [];
+    const availableRooms: AvailableRoomInCalendar[] = [];
 
     for (const room of property.rooms) {
       // Check if room is booked on this date
-      const isBooked = room.bookings.some((booking: any) => {
+      const isBooked = room.bookings.some((booking) => {
         const checkIn = new Date(booking.check_in);
         const checkOut = new Date(booking.check_out);
         return currentDate >= checkIn && currentDate < checkOut;
       });
 
       // Check if room is unavailable on this date
-      const isUnavailable = room.room_unavailabilities.some((unavail: any) => {
+      const isUnavailable = room.room_unavailabilities.some((unavail) => {
         // Create new date objects and normalize to midnight for proper comparison
         const startDate = new Date(unavail.start_date);
         const endDate = new Date(unavail.end_date);
@@ -206,7 +261,7 @@ export const processCalendarData = (
       });
 
       // Calculate booked rooms count for this date
-      const bookedRoomsCount = room.bookings.filter((booking: any) => {
+      const bookedRoomsCount = room.bookings.filter((booking) => {
         const checkIn = new Date(booking.check_in);
         const checkOut = new Date(booking.check_out);
         return currentDate >= checkIn && currentDate < checkOut;
@@ -221,7 +276,7 @@ export const processCalendarData = (
         // Calculate price with peak season rate if applicable
         let finalPrice = room.price;
 
-        const applicablePeakRate = room.peak_season_rates.find((rate: any) => {
+        const applicablePeakRate = room.peak_season_rates.find((rate) => {
           const startDate = new Date(rate.start_date);
           const endDate = new Date(rate.end_date);
           return currentDate >= startDate && currentDate <= endDate;
@@ -237,7 +292,9 @@ export const processCalendarData = (
         }
 
         availableRooms.push({
-          ...room,
+          id: room.id,
+          name: room.name,
+          price: room.price,
           available_quantity: availableQuantity,
           final_price: finalPrice,
         });

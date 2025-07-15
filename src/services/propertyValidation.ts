@@ -1,4 +1,4 @@
-import { Response } from "express";
+import { Response, Request } from "express";
 
 interface SearchParams {
   city_id?: string;
@@ -17,6 +17,36 @@ interface DetailParams {
   check_in?: string;
   check_out?: string;
   guests?: string;
+}
+
+// Interface untuk query parameters
+interface CalendarQuery {
+  year?: string;
+  month?: string;
+}
+
+interface CalendarParams {
+  propertyId?: string;
+}
+
+// Interface untuk update peak season
+interface UpdatePeakSeasonBody {
+  type?: string;
+  value?: string | number;
+  start_date?: string;
+  end_date?: string;
+}
+
+interface UpdatePeakSeasonParams {
+  id?: string;
+}
+
+export interface ValidatedUpdatePeakSeasonParams {
+  id: number;
+  type?: "percentage" | "fixed";
+  value?: number;
+  startDate?: Date;
+  endDate?: Date;
 }
 
 export interface ValidatedSearchParams {
@@ -304,14 +334,21 @@ export const validateDetailParams = (
 };
 
 export const validateCalendarParams = (
-  query: any,
-  params: any,
+  query: CalendarQuery,
+  params: CalendarParams,
   res: Response
 ): ValidatedCalendarParams | null => {
   const { propertyId } = params;
   const { year, month } = query;
 
   // Validate propertyId
+  if (!propertyId) {
+    res.status(400).json({
+      status: "error",
+      message: "Property ID harus diisi",
+    });
+    return null;
+  }
   const parsedPropertyId = parseInt(propertyId);
   if (isNaN(parsedPropertyId) || parsedPropertyId <= 0) {
     res.status(400).json({
@@ -322,6 +359,13 @@ export const validateCalendarParams = (
   }
 
   // Validate year
+  if (!year) {
+    res.status(400).json({
+      status: "error",
+      message: "Year harus diisi",
+    });
+    return null;
+  }
   const parsedYear = parseInt(year);
   if (isNaN(parsedYear) || parsedYear < 2020 || parsedYear > 2030) {
     res.status(400).json({
@@ -332,6 +376,13 @@ export const validateCalendarParams = (
   }
 
   // Validate month
+  if (!month) {
+    res.status(400).json({
+      status: "error",
+      message: "Month harus diisi",
+    });
+    return null;
+  }
   const parsedMonth = parseInt(month);
   if (isNaN(parsedMonth) || parsedMonth < 1 || parsedMonth > 12) {
     res.status(400).json({
@@ -1658,21 +1709,9 @@ export const validateCreatePeakSeasonParams = (
   return { roomId, type, value: valNumber, startDate, endDate };
 };
 
-interface UpdatePeakSeasonParams {
-  id?: string; // from URL param
-}
-
-export interface ValidatedUpdatePeakSeasonParams {
-  id: number;
-  type?: "percentage" | "fixed";
-  value?: number;
-  startDate?: Date;
-  endDate?: Date;
-}
-
 export const validateUpdatePeakSeasonParams = (
   params: UpdatePeakSeasonParams,
-  body: any,
+  body: UpdatePeakSeasonBody,
   res: Response
 ): ValidatedUpdatePeakSeasonParams | null => {
   const { id } = params;
@@ -1713,7 +1752,7 @@ export const validateUpdatePeakSeasonParams = (
     result.type = type;
   }
   if (value !== undefined) {
-    const valNum = parseInt(value);
+    const valNum = parseInt(String(value));
     if (isNaN(valNum) || valNum <= 0) {
       res
         .status(400)
