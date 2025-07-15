@@ -515,11 +515,12 @@ export const createNewProperty = async (
     if (!validatedParams) return;
 
     // Create property baru
-    await createProperty(validatedParams, userId);
+    const data = await createProperty(validatedParams, userId);
 
     res.status(201).json({
       success: true,
       message: "Property berhasil dibuat",
+      data: data,
     });
   } catch (error) {
     console.error("Error in createNewProperty:", error);
