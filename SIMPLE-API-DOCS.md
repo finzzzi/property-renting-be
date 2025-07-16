@@ -411,3 +411,103 @@ curl http://localhost:8000/pictures/all-room-pictures \
   "message": "Property ID harus berupa angka"
 }
 ```
+
+---
+
+## 👤 Profile Picture
+
+### 13. Upload Profile Picture
+
+```
+POST /pictures/profile/upload
+Authorization: Bearer <token>
+Content-Type: multipart/form-data
+
+Body:
+- file: <image-file>
+```
+
+**Success Response (200):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Foto profil berhasil diupload",
+    "user": {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "name": "John Doe",
+      "email": "john@example.com",
+      "profile_picture": "https://xxx.supabase.co/storage/v1/object/public/avatars/avatars/avatar_550e8400_1703123456_abc123.jpg",
+      "updated_at": "2023-12-21T10:30:00.000Z"
+    },
+    "file_path": "avatars/avatar_550e8400_1703123456_abc123.jpg",
+    "public_url": "https://xxx.supabase.co/storage/v1/object/public/avatars/avatars/avatar_550e8400_1703123456_abc123.jpg"
+  }
+}
+```
+
+**Error Response (400):**
+
+```json
+{
+  "success": false,
+  "message": "File harus diupload"
+}
+```
+
+---
+
+### 14. Delete Profile Picture
+
+```
+DELETE /pictures/profile/delete
+Authorization: Bearer <token>
+```
+
+**Success Response (200):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Foto profil berhasil dihapus",
+    "user": {
+      "id": "550e8400-e29b-41d4-a716-446655440000",
+      "name": "John Doe",
+      "email": "john@example.com",
+      "profile_picture": null,
+      "updated_at": "2023-12-21T10:35:00.000Z"
+    }
+  }
+}
+```
+
+**Error Response (400):**
+
+```json
+{
+  "success": false,
+  "message": "User tidak memiliki foto profil"
+}
+```
+
+---
+
+### cURL Examples for Profile Picture:
+
+**Upload Profile Picture:**
+
+```bash
+curl -X POST http://localhost:8000/pictures/profile/upload \
+  -H "Authorization: Bearer your-token-here" \
+  -H "Content-Type: multipart/form-data" \
+  -F "file=@profile-photo.jpg"
+```
+
+**Delete Profile Picture:**
+
+```bash
+curl -X DELETE http://localhost:8000/pictures/profile/delete \
+  -H "Authorization: Bearer your-token-here"
+```

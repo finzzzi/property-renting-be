@@ -729,6 +729,165 @@ export class PictureController {
         .json(createErrorResponse("Gagal mengambil data room dengan foto"));
     }
   }
+
+  // === PROFILE PICTURE ===
+
+  // Upload profile picture
+  async uploadProfilePicture(req: Request, res: Response): Promise<void> {
+    try {
+      const file = req.file;
+      const userId = req.user?.id;
+
+      if (!file) {
+        res.status(400).json(createErrorResponse("File harus diupload"));
+        return;
+      }
+
+      if (!userId) {
+        res.status(401).json(createErrorResponse("User tidak terautentikasi"));
+        return;
+      }
+
+      // Get access token from request header
+      const accessToken = req.headers.authorization?.replace("Bearer ", "");
+
+      // Check if user already has a profile picture
+      const currentUser = await prisma.public_users.findUnique({
+        where: { id: userId },
+        select: { profile_picture: true },
+      });
+
+      if (!currentUser) {
+        res.status(404).json(createErrorResponse("User tidak ditemukan"));
+        return;
+      }
+
+      // If user has existing profile picture, delete it from storage
+      if (currentUser.profile_picture) {
+        try {
+          // Extract file path from the full URL
+          const urlParts = currentUser.profile_picture.split("/");
+          const fileName = urlParts[urlParts.length - 1];
+          const filePath = `avatars/${fileName}`;
+
+          await storageService.deleteAvatar(filePath, accessToken);
+        } catch (deleteError) {
+          console.error("Error deleting old profile picture:", deleteError);
+          // Continue with upload even if delete fails
+        }
+      }
+
+      // Upload new profile picture
+      const uploadResult = await storageService.uploadAvatar(
+        file,
+        userId,
+        accessToken
+      );
+
+      // Update user profile with new picture URL
+      const updatedUser = await prisma.public_users.update({
+        where: { id: userId },
+        data: {
+          profile_picture: uploadResult.publicUrl,
+          updated_at: new Date(),
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          profile_picture: true,
+          updated_at: true,
+        },
+      });
+
+      res.status(200).json(
+        createSuccessResponse({
+          message: "Foto profil berhasil diupload",
+          user: updatedUser,
+          file_path: uploadResult.filePath,
+          public_url: uploadResult.publicUrl,
+        })
+      );
+    } catch (error: any) {
+      console.error("Error uploading profile picture:", error);
+
+      const errorResult = handleDatabaseError(error);
+      res
+        .status(errorResult.status)
+        .json(createErrorResponse(errorResult.message));
+    }
+  }
+
+  // Delete profile picture
+  async deleteProfilePicture(req: Request, res: Response): Promise<void> {
+    try {
+      const userId = req.user?.id;
+
+      if (!userId) {
+        res.status(401).json(createErrorResponse("User tidak terautentikasi"));
+        return;
+      }
+
+      // Get access token from request header
+      const accessToken = req.headers.authorization?.replace("Bearer ", "");
+
+      // Check if user has a profile picture
+      const currentUser = await prisma.public_users.findUnique({
+        where: { id: userId },
+        select: { profile_picture: true },
+      });
+
+      if (!currentUser) {
+        res.status(404).json(createErrorResponse("User tidak ditemukan"));
+        return;
+      }
+
+      if (!currentUser.profile_picture) {
+        res
+          .status(400)
+          .json(createErrorResponse("User tidak memiliki foto profil"));
+        return;
+      }
+
+      // Extract file path from the full URL
+      const urlParts = currentUser.profile_picture.split("/");
+      const fileName = urlParts[urlParts.length - 1];
+      const filePath = `avatars/${fileName}`;
+
+      // Delete file from storage
+      await storageService.deleteAvatar(filePath, accessToken);
+
+      // Update user profile to remove picture URL
+      const updatedUser = await prisma.public_users.update({
+        where: { id: userId },
+        data: {
+          profile_picture: null,
+          updated_at: new Date(),
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          profile_picture: true,
+          updated_at: true,
+        },
+      });
+
+      res.status(200).json(
+        createSuccessResponse({
+          message: "Foto profil berhasil dihapus",
+          user: updatedUser,
+        })
+      );
+    } catch (error: any) {
+      console.error("Error deleting profile picture:", error);
+
+      const errorResult = handleDatabaseError(error);
+      res
+        .status(errorResult.status)
+        .json(createErrorResponse(errorResult.message));
+    }
+  }
 }
 
 export const pictureController = new PictureController();

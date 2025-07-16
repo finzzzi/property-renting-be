@@ -73,6 +73,24 @@ router.get(
   pictureController.getAllRoomPictures.bind(pictureController)
 );
 
+// === PROFILE PICTURE ROUTES ===
+
+// Upload profile picture
+router.post(
+  "/profile/upload",
+  authenticateUser,
+  uploadSingle,
+  validateFileExists,
+  pictureController.uploadProfilePicture.bind(pictureController)
+);
+
+// Delete profile picture
+router.delete(
+  "/profile/delete",
+  authenticateUser,
+  pictureController.deleteProfilePicture.bind(pictureController)
+);
+
 // === HELPER ROUTES ===
 
 // Get properties list (for dropdown)

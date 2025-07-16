@@ -172,6 +172,50 @@ export class StorageService {
   ): Promise<void> {
     return this.deleteFile("room-pictures", filePath, accessToken);
   }
+
+  // Avatar upload methods
+  async uploadAvatar(
+    file: Express.Multer.File,
+    userId: string,
+    accessToken?: string
+  ): Promise<UploadResult> {
+    // Use userId directly since it's a string
+    const timestamp = Date.now();
+    const randomId = uuidv4().slice(0, 8);
+    const extension = path.extname(file.originalname).toLowerCase();
+    const fileName = `avatar_${userId}_${timestamp}_${randomId}${extension}`;
+    const filePath = `avatars/${fileName}`;
+
+    // Get appropriate Supabase client
+    const client = this.getSupabaseClient(accessToken);
+
+    // Upload file to Supabase storage
+    const { data, error } = await client.storage
+      .from("avatars")
+      .upload(filePath, file.buffer, {
+        contentType: file.mimetype,
+        cacheControl: "3600",
+        upsert: false,
+      });
+
+    if (error) {
+      console.error("Upload avatar error:", error);
+      throw new Error(`Upload avatar failed: ${error.message}`);
+    }
+
+    // Get public URL
+    const publicUrl = this.getPublicUrl("avatars", filePath);
+
+    return {
+      filePath,
+      publicUrl,
+      fileName,
+    };
+  }
+
+  async deleteAvatar(filePath: string, accessToken?: string): Promise<void> {
+    return this.deleteFile("avatars", filePath, accessToken);
+  }
 }
 
 export const storageService = new StorageService();
