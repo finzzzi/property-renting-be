@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import propertyRoutes from "./routes/propertyRoutes";
 import pictureRoutes from "./routes/pictureRoutes";
+import userRoutes from "./routes/userRoutes";
 
 const app = express();
 const PORT = 8000;
@@ -13,6 +14,7 @@ app.use(express.json());
 // Routes
 app.use("/properties", propertyRoutes);
 app.use("/pictures", pictureRoutes);
+app.use("/users", userRoutes);
 
 // Global error handling middleware
 app.use(
